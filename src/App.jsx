@@ -39,45 +39,45 @@ const CSS = `
   --txt:#f8fafc;--soft:#96a7c8;--brand:#6366f1;--brand2:#8b5cf6;--ok:#22c55e;--warn:#f59e0b;--bad:#ef4444;
   --radius:18px;--shadow:0 18px 45px rgba(0,0,0,.25)
 }
-*{box-sizing:border-box} html,body,#root{height:100%}
+*{box-sizing:border-box}
+html,body,#root{height:100%;width:100%;max-width:100%;overflow-x:hidden}
 body{margin:0;background:radial-gradient(circle at top left,#0b1838 0%,#08111f 34%,#050b15 100%);color:var(--txt);font-family:Inter,system-ui,sans-serif}
 button,input,select,textarea{font:inherit}
 a{color:inherit;text-decoration:none}
-.app{display:grid;grid-template-columns:280px 1fr;min-height:100vh}
+.app{display:grid;grid-template-columns:280px minmax(0,1fr);min-height:100vh;width:100%;max-width:100vw;overflow-x:hidden}
 .sidebar{background:rgba(7,13,25,.92);backdrop-filter:blur(10px);border-right:1px solid var(--line);padding:18px;position:sticky;top:0;height:100vh;overflow:auto}
 .brand{display:flex;gap:12px;align-items:center;padding:10px 8px 18px;border-bottom:1px solid var(--line);margin-bottom:14px}
 .logo{width:46px;height:46px;border-radius:16px;background:linear-gradient(135deg,var(--brand),var(--brand2));display:grid;place-items:center;font-weight:900;font-size:22px;box-shadow:0 10px 30px rgba(99,102,241,.35)}
 .nav{display:flex;flex-direction:column;gap:8px}.nav button{background:transparent;color:#cad5eb;border:none;padding:13px 14px;border-radius:14px;text-align:left;cursor:pointer;font-weight:700}.nav button.active,.nav button:hover{background:#182445;color:#fff}
 .side-footer{margin-top:18px;padding:14px;background:linear-gradient(180deg,rgba(21,31,57,.95),rgba(15,24,45,.95));border:1px solid var(--line);border-radius:18px}
-.main{padding:24px 26px 36px}
+.main{padding:24px 26px 36px;min-width:0;overflow-x:hidden}
 .topbar{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:20px}
 .title{font-size:34px;font-weight:900;letter-spacing:-.03em;line-height:1.05}
 .subtitle{color:var(--soft);margin-top:6px}
 .row{display:flex;gap:12px;flex-wrap:wrap}.col{display:flex;flex-direction:column;gap:12px}
-.input,.select,.textarea{background:rgba(16,24,45,.95);border:1px solid var(--line);color:#fff;border-radius:14px;padding:12px 13px;width:100%}.input:focus,.select:focus,.textarea:focus{outline:none;border-color:#4f67a5;box-shadow:0 0 0 3px rgba(99,102,241,.12)}
+.input,.select,.textarea{background:rgba(16,24,45,.95);border:1px solid var(--line);color:#fff;border-radius:14px;padding:12px 13px;width:100%;max-width:100%}.input:focus,.select:focus,.textarea:focus{outline:none;border-color:#4f67a5;box-shadow:0 0 0 3px rgba(99,102,241,.12)}
 .textarea{min-height:96px;resize:vertical}
 .btn{background:#1a2747;color:#fff;border:1px solid var(--line2);padding:10px 14px;border-radius:14px;cursor:pointer;font-weight:800;transition:.18s transform,.18s opacity,.18s background}.btn:hover{transform:translateY(-1px)}
 .btn.primary{background:linear-gradient(135deg,var(--brand),#4f46e5);border:none}.btn.good{background:#143722;border:1px solid #23633c}.btn.danger{background:#3b1620;border:1px solid #702433}.btn.light{background:#10203b;border:1px solid #24456d;color:#bfdbfe}
-.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
-.card{background:linear-gradient(180deg,rgba(16,24,45,.96),rgba(14,22,41,.96));border:1px solid var(--line);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow)}
+.grid4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.card{background:linear-gradient(180deg,rgba(16,24,45,.96),rgba(14,22,41,.96));border:1px solid var(--line);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);min-width:0}
 .stat .label{color:var(--soft);font-size:12px;text-transform:uppercase;letter-spacing:.08em}.stat .value{font-size:30px;font-weight:900;margin-top:8px}.stat .delta{margin-top:8px;font-size:12px;color:#c7d2fe}
 .notice{background:#10203b;border:1px solid #21406a;color:#cde1ff;padding:11px 13px;border-radius:14px;font-size:13px;margin-bottom:14px}
 .kpi-icon{width:42px;height:42px;border-radius:14px;display:grid;place-items:center;background:rgba(99,102,241,.13);border:1px solid rgba(99,102,241,.25)}
-.tablewrap{overflow:auto;border:1px solid var(--line);border-radius:18px;background:rgba(16,24,45,.9)}
+.tablewrap{overflow:auto;border:1px solid var(--line);border-radius:18px;background:rgba(16,24,45,.9);max-width:100%}
 .table{width:100%;border-collapse:collapse}.table th,.table td{padding:12px 14px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}.table th{font-size:12px;color:var(--soft);text-transform:uppercase;letter-spacing:.08em}.table td.name{font-weight:800;color:#fff}
 .badge{display:inline-flex;align-items:center;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:800}
-.metricline{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
-.metricline:last-child{border-bottom:none}
+.metricline{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);gap:12px}.metricline:last-child{border-bottom:none}
 .filterbar{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
 .searchbar{min-width:260px}.actions{display:flex;gap:8px;flex-wrap:wrap}.muted{color:var(--soft)}.small{font-size:12px;color:var(--soft)}
 .modalbg{position:fixed;inset:0;background:rgba(2,6,23,.72);display:grid;place-items:center;padding:16px;z-index:60}.modal{width:min(920px,100%);max-height:90vh;overflow:auto;background:#0f172a;border:1px solid var(--line);border-radius:22px;box-shadow:0 25px 60px rgba(0,0,0,.4)}.modal header{display:flex;justify-content:space-between;align-items:center;padding:18px 20px;border-bottom:1px solid var(--line)}.modal .body{padding:20px}
-.formgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
-.kgrid{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;overflow:auto}.kcol{min-width:260px;background:rgba(16,24,45,.96);border:1px solid var(--line);border-radius:18px}.khead{padding:12px 14px;border-bottom:1px solid var(--line);font-weight:900;font-size:13px;display:flex;justify-content:space-between}.kbody{padding:10px;display:flex;flex-direction:column;gap:10px;min-height:320px}.kcard{background:#192645;border:1px solid var(--line);border-radius:16px;padding:12px;cursor:grab}.kcard:hover{border-color:#405a91}
+.formgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.kgrid{display:grid;grid-template-columns:repeat(6,minmax(260px,1fr));gap:12px;overflow:auto;max-width:100%}.kcol{min-width:260px;background:rgba(16,24,45,.96);border:1px solid var(--line);border-radius:18px}.khead{padding:12px 14px;border-bottom:1px solid var(--line);font-weight:900;font-size:13px;display:flex;justify-content:space-between}.kbody{padding:10px;display:flex;flex-direction:column;gap:10px;min-height:320px}.kcard{background:#192645;border:1px solid var(--line);border-radius:16px;padding:12px;cursor:grab}.kcard:hover{border-color:#405a91}
 .toaststack{position:fixed;top:18px;right:18px;display:flex;flex-direction:column;gap:10px;z-index:80}.toast{min-width:240px;max-width:340px;padding:12px 14px;border-radius:14px;border:1px solid var(--line);background:#101a31;box-shadow:var(--shadow);font-size:13px}.toast.ok{border-color:#235b3b}.toast.err{border-color:#6e2430}.toast.info{border-color:#21406a}
 .spark{width:100%;height:80px}.spark path.line{fill:none;stroke:#7c88ff;stroke-width:3}.spark path.fill{fill:rgba(99,102,241,.12)}
 .progress{width:100%;height:10px;background:#0c1325;border-radius:999px;overflow:hidden;border:1px solid var(--line)}.progress > span{display:block;height:100%;background:linear-gradient(90deg,#6366f1,#8b5cf6)}
 .helper{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 14px;border:1px dashed var(--line2);border-radius:16px;background:rgba(16,24,45,.65)}
-@media (max-width:1180px){.grid4,.grid3,.grid2,.formgrid{grid-template-columns:1fr}.app{grid-template-columns:1fr}.sidebar{position:relative;height:auto}.kgrid{grid-template-columns:1fr}}
+@media (max-width:1180px){.grid4,.grid3,.grid2,.formgrid{grid-template-columns:1fr}.app{grid-template-columns:1fr}.sidebar{position:relative;height:auto}.kgrid{grid-template-columns:1fr;overflow:visible}.main{padding:18px}}
 `;
 
 function seedSample() {
@@ -595,10 +595,10 @@ export default function App() {
     <Toasts items={toasts} remove={removeToast} />
     <div className="app">
       <aside className="sidebar">
-        <div className="brand"><div className="logo">AC</div><div><div style={{fontWeight:900}}>AssurCRM Pro</div><div className="small">Version commerciale améliorée</div></div></div>
+        <div className="brand"><div className="logo">AC</div><div><div style={{fontWeight:900}}>AssurPilot</div><div className="small">CRM intelligent pour courtiers</div></div></div>
         <div className="nav">{MENU.map(([id, label]) => <button key={id} className={page===id?"active":""} onClick={()=>setPage(id)}>{label}</button>)}</div>
         <div className="side-footer">
-          <div style={{fontWeight:900, marginBottom:6}}>Vue cabinet</div>
+          <div style={{fontWeight:900, marginBottom:6}}>Vue AssurPilot</div>
           <div className="small">Clients : {data.clients.length}</div>
           <div className="small">Contrats actifs : {data.contracts.filter(c=>c.statut === 'Actif').length}</div>
           <div className="small">Pipeline : {euro(data.deals.reduce((s, d) => s + Number(d.montant || 0), 0))}</div>
@@ -609,7 +609,7 @@ export default function App() {
         <div className="topbar">
           <div>
             <div className="title">{MENU.find(m=>m[0]===page)?.[1]}</div>
-            <div className="subtitle">CRM assurance orienté performance commerciale et suivi artisan.</div>
+            <div className="subtitle">AssurPilot pilote votre cabinet, vos relances et votre activité artisan sans friction.</div>
           </div>
           <div className="filterbar">
             <input className="input searchbar" placeholder="Recherche globale client / artisan..." value={q} onChange={(e)=>setQ(e.target.value)} />
