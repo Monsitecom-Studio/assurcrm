@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
+import Landing from "./Landing.jsx";
 
 const supabase = createClient(
   "https://mwmgbputepupsmxmkeco.supabase.co",
@@ -571,7 +572,7 @@ function Reports({ data }) {
   </div>;
 }
 
-export default function App() {
+function CRMApp() {
   const { data, actions, loading, error, toasts, removeToast } = useCRMCloud();
   const [page, setPage] = useState("dashboard");
   const [q, setQ] = useState("");
@@ -595,7 +596,10 @@ export default function App() {
     <Toasts items={toasts} remove={removeToast} />
     <div className="app">
       <aside className="sidebar">
-        <div className="brand"><div className="logo">AC</div><div><div style={{fontWeight:900}}>AssurPilot</div><div className="small">CRM intelligent pour courtiers</div></div></div>
+        <div className="brand">
+          <div className="logo">AP</div>
+          <div><div style={{fontWeight:900}}>AssurPilot</div><div className="small">CRM intelligent pour courtiers</div></div>
+        </div>
         <div className="nav">{MENU.map(([id, label]) => <button key={id} className={page===id?"active":""} onClick={()=>setPage(id)}>{label}</button>)}</div>
         <div className="side-footer">
           <div style={{fontWeight:900, marginBottom:6}}>Vue AssurPilot</div>
@@ -632,4 +636,10 @@ export default function App() {
       </main>
     </div>
   </>;
+}
+
+export default function App() {
+  const path = window.location.pathname;
+  if (path === "/crm") return <CRMApp />;
+  return <Landing />;
 }
