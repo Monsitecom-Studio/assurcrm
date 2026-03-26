@@ -572,7 +572,7 @@ function Reports({ data }) {
   </div>;
 }
 
-function CRMApp() {
+function CRMApp({ onLogout, currentUser }) {
   const { data, actions, loading, error, toasts, removeToast } = useCRMCloud();
   const [page, setPage] = useState("dashboard");
   const [q, setQ] = useState("");
@@ -603,6 +603,7 @@ function CRMApp() {
         <div className="nav">{MENU.map(([id, label]) => <button key={id} className={page===id?"active":""} onClick={()=>setPage(id)}>{label}</button>)}</div>
         <div className="side-footer">
           <div style={{fontWeight:900, marginBottom:6}}>Vue AssurPilot</div>
+          <div className="small">Connecté : {currentUser?.email || "—"}</div>
           <div className="small">Clients : {data.clients.length}</div>
           <div className="small">Contrats actifs : {data.contracts.filter(c=>c.statut === 'Actif').length}</div>
           <div className="small">Pipeline : {euro(data.deals.reduce((s, d) => s + Number(d.montant || 0), 0))}</div>
@@ -618,6 +619,7 @@ function CRMApp() {
           <div className="filterbar">
             <input className="input searchbar" placeholder="Recherche globale client / artisan..." value={q} onChange={(e)=>setQ(e.target.value)} />
             <button className="btn" onClick={()=>exportCSV("clients.csv", [["Prénom","Nom","Email","Téléphone","Ville","Statut"], ...data.clients.map(c=>[c.prenom,c.nom,c.email,c.tel,c.ville,c.statut])])}>Exporter clients</button>
+            <button className="btn light" onClick={onLogout}>Déconnexion</button>
           </div>
         </div>
 
@@ -638,8 +640,160 @@ function CRMApp() {
   </>;
 }
 
+
+function LoginScreen({ onLogin, loading, error }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const shell = {
+    minHeight: "100vh",
+    display: "grid",
+    placeItems: "center",
+    padding: "24px",
+    background: "radial-gradient(circle at top left,#0b1838 0%,#08111f 34%,#050b15 100%)",
+    color: "white",
+    fontFamily: "Inter, Arial, sans-serif",
+  };
+
+  const card = {
+    width: "100%",
+    maxWidth: "460px",
+    background: "rgba(15,23,42,0.88)",
+    border: "1px solid rgba(255,255,255,0.10)",
+    borderRadius: "28px",
+    padding: "28px",
+    boxShadow: "0 24px 60px rgba(0,0,0,0.35)",
+  };
+
+  const input = {
+    width: "100%",
+    padding: "14px 16px",
+    borderRadius: "16px",
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: "rgba(255,255,255,0.05)",
+    color: "white",
+    outline: "none",
+  };
+
+  const button = {
+    width: "100%",
+    padding: "14px 18px",
+    borderRadius: "16px",
+    border: "none",
+    background: "linear-gradient(135deg,#6366f1,#8b5cf6)",
+    color: "white",
+    fontWeight: 800,
+    cursor: "pointer",
+  };
+
+  return (
+    <div style={shell}>
+      <div style={card}>
+        <div style={{display:"flex", alignItems:"center", gap:"12px", marginBottom:"18px"}}>
+          <div style={{width:"46px", height:"46px", borderRadius:"16px", display:"grid", placeItems:"center", background:"linear-gradient(135deg,#6366f1,#8b5cf6)", fontWeight:900}}>AP</div>
+          <div>
+            <div style={{fontSize:"28px", fontWeight:900}}>AssurPilot</div>
+            <div style={{fontSize:"13px", color:"#94a3b8"}}>Connexion sécurisée au CRM</div>
+          </div>
+        </div>
+
+        <div style={{fontSize:"34px", fontWeight:900, lineHeight:1.1, marginBottom:"10px"}}>Espace CRM privé</div>
+        <div style={{color:"#cbd5e1", lineHeight:1.7, marginBottom:"20px"}}>
+          Connecte-toi pour accéder à ton établissement, tes utilisateurs et tes données clients.
+        </div>
+
+        <div style={{display:"grid", gap:"12px"}}>
+          <input
+            style={input}
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e)=>setEmail(e.target.value)}
+          />
+          <input
+            style={input}
+            type="password"
+            placeholder="Mot de passe"
+            value={password}
+            onChange={(e)=>setPassword(e.target.value)}
+            onKeyDown={(e)=>{ if (e.key === "Enter") onLogin(email, password); }}
+          />
+          {error ? <div style={{padding:"12px 14px", borderRadius:"14px", background:"rgba(239,68,68,0.12)", border:"1px solid rgba(239,68,68,0.25)", color:"#fecaca"}}>{error}</div> : null}
+          <button style={button} onClick={()=>onLogin(email, password)} disabled={loading}>
+            {loading ? "Connexion..." : "Se connecter"}
+          </button>
+          <button
+            style={{...button, background:"transparent", border:"1px solid rgba(255,255,255,0.12)"}}
+            onClick={()=>window.location.href = "/"}
+          >
+            Retour au site
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CRMProtected() {
+  const [session, setSession] = useState(null);
+  const [checking, setChecking] = useState(true);
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState("");
+
+  useEffect(() => {
+    let mounted = true;
+
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (!mounted) return;
+      if (error) setAuthError(error.message || "Erreur de session");
+      setSession(data.session || null);
+      setChecking(false);
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession || null);
+      setChecking(false);
+    });
+
+    return () => {
+      mounted = false;
+      listener?.subscription?.unsubscribe?.();
+    };
+  }, []);
+
+  const login = async (email, password) => {
+    setAuthLoading(true);
+    setAuthError("");
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) setAuthError(error.message || "Connexion impossible");
+    setAuthLoading(false);
+  };
+
+  const logout = async () => {
+    await supabase.auth.signOut();
+    window.location.href = "/";
+  };
+
+  if (checking) {
+    return (
+      <div style={{minHeight:"100vh", display:"grid", placeItems:"center", background:"radial-gradient(circle at top left,#0b1838 0%,#08111f 34%,#050b15 100%)", color:"white", fontFamily:"Inter, Arial, sans-serif"}}>
+        <div style={{padding:"18px 22px", borderRadius:"18px", background:"rgba(15,23,42,0.82)", border:"1px solid rgba(255,255,255,0.08)"}}>
+          Vérification de l’accès sécurisé...
+        </div>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return <LoginScreen onLogin={login} loading={authLoading} error={authError} />;
+  }
+
+  return <CRMApp onLogout={logout} currentUser={session.user} />;
+}
+
 export default function App() {
   const path = window.location.pathname;
-  if (path === "/crm") return <CRMApp />;
+  if (path === "/crm") return <CRMProtected />;
   return <Landing />;
 }
+
