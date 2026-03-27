@@ -102,15 +102,22 @@ function statusStyle(txt) {
   return { background: "#3a2a08", color: "#fde68a" };
 }
 
-function Badge({ children }) { return <span className="badge" style={statusStyle(children)}>{children}</span>; }
-function clientName(c) { return c ? `${c.prenom || ""} ${c.nom || ""}`.trim() : "—"; }
+function Badge({ children }) {
+  return <span className="badge" style={statusStyle(children)}>{children}</span>;
+}
+
+function clientName(c) {
+  return c ? `${c.prenom || ""} ${c.nom || ""}`.trim() : "—";
+}
 
 function exportCSV(filename, rows) {
   const csv = rows.map((r) => r.map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`).join(";")).join("\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
-  a.href = url; a.download = filename; a.click();
+  a.href = url;
+  a.download = filename;
+  a.click();
   URL.revokeObjectURL(url);
 }
 
@@ -119,19 +126,31 @@ function Toasts({ items, remove }) {
 }
 
 function Modal({ title, onClose, children }) {
-  return <div className="modalbg" onClick={onClose}><div className="modal" onClick={(e) => e.stopPropagation()}><header><strong>{title}</strong><button className="btn" onClick={onClose}>Fermer</button></header><div className="body">{children}</div></div></div>;
+  return (
+    <div className="modalbg" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <header>
+          <strong>{title}</strong>
+          <button className="btn" onClick={onClose}>Fermer</button>
+        </header>
+        <div className="body">{children}</div>
+      </div>
+    </div>
+  );
 }
 
 function ConfirmDialog({ title, message, onClose, onConfirm }) {
-  return <Modal title={title} onClose={onClose}>
-    <div className="col">
-      <div>{message}</div>
-      <div className="row" style={{ justifyContent: "flex-end" }}>
-        <button className="btn" onClick={onClose}>Annuler</button>
-        <button className="btn danger" onClick={onConfirm}>Supprimer</button>
+  return (
+    <Modal title={title} onClose={onClose}>
+      <div className="col">
+        <div>{message}</div>
+        <div className="row" style={{ justifyContent: "flex-end" }}>
+          <button className="btn" onClick={onClose}>Annuler</button>
+          <button className="btn danger" onClick={onConfirm}>Supprimer</button>
+        </div>
       </div>
-    </div>
-  </Modal>;
+    </Modal>
+  );
 }
 
 function MiniSpark({ values }) {
@@ -146,7 +165,12 @@ function MiniSpark({ values }) {
   });
   const line = points.map((p, i) => `${i === 0 ? "M" : "L"}${p[0]},${p[1]}`).join(" ");
   const fill = `${line} L ${width},${height} L 0,${height} Z`;
-  return <svg className="spark" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none"><path className="fill" d={fill} /><path className="line" d={line} /></svg>;
+  return (
+    <svg className="spark" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
+      <path className="fill" d={fill} />
+      <path className="line" d={line} />
+    </svg>
+  );
 }
 
 function monthKeyFromDate(value) {
@@ -182,8 +206,10 @@ function useCRMCloud() {
         supabase.from("claims").select("*").order("id", { ascending: false }),
         supabase.from("artisans").select("*").order("created_at", { ascending: false }),
       ]);
+
       const err = [clients, contracts, tasks, deals, claims, artisans].find((r) => r.error)?.error;
       if (err) throw err;
+
       setData({
         clients: clients.data || [],
         contracts: contracts.data || [],
@@ -202,8 +228,10 @@ function useCRMCloud() {
 
   useEffect(() => {
     loadAll();
+
     let channel = null;
     const hasWebSocket = typeof window !== "undefined" && typeof window.WebSocket !== "undefined";
+
     if (hasWebSocket) {
       channel = supabase
         .channel("crm-realtime-pro")
@@ -215,7 +243,10 @@ function useCRMCloud() {
         .on("postgres_changes", { event: "*", schema: "public", table: "artisans" }, () => loadAll(true))
         .subscribe();
     }
-    return () => { if (channel) supabase.removeChannel(channel); };
+
+    return () => {
+      if (channel) supabase.removeChannel(channel);
+    };
   }, []);
 
   const saveAction = async (label, run, type = "ok") => {
@@ -230,51 +261,154 @@ function useCRMCloud() {
 
   const actions = {
     refresh: () => loadAll(),
+
     seedDemo: async () => saveAction("Données de démo chargées", async () => {
       const sample = seedSample();
       const { data: insertedClients, error } = await supabase.from("clients").insert(sample.clients).select();
       if (error) throw error;
+
       const firstClientId = insertedClients?.[0]?.id;
       const secondClientId = insertedClients?.[1]?.id || firstClientId;
-      await supabase.from("contracts").insert([{ ...sample.contracts[0], client_id: firstClientId }]);
-      await supabase.from("tasks").insert([{ ...sample.tasks[0], client_id: secondClientId }]);
-      await supabase.from("deals").insert([{ ...sample.deals[0], client_id: secondClientId }]);
-      await supabase.from("claims").insert([{ ...sample.claims[0], client_id: firstClientId }]);
-      await supabase.from("artisans").insert(sample.artisans);
+
+      let r = await supabase.from("contracts").insert([{ ...sample.contracts[0], client_id: firstClientId }]);
+      if (r.error) throw r.error;
+
+      r = await supabase.from("tasks").insert([{ ...sample.tasks[0], client_id: secondClientId }]);
+      if (r.error) throw r.error;
+
+      r = await supabase.from("deals").insert([{ ...sample.deals[0], client_id: secondClientId }]);
+      if (r.error) throw r.error;
+
+      r = await supabase.from("claims").insert([{ ...sample.claims[0], client_id: firstClientId }]);
+      if (r.error) throw r.error;
+
+      r = await supabase.from("artisans").insert(sample.artisans);
+      if (r.error) throw r.error;
     }),
-    addClient: async (payload) => saveAction("Client ajouté", async () => { const { error } = await supabase.from("clients").insert([{ ...payload }]); if (error) throw error; }),
-    updateClient: async (id, payload) => saveAction("Client modifié", async () => { const { error } = await supabase.from("clients").update(payload).eq("id", id); if (error) throw error; }),
+
+    addClient: async (payload) => saveAction("Client ajouté", async () => {
+      const { error } = await supabase.from("clients").insert([{ ...payload }]);
+      if (error) throw error;
+    }),
+
+    updateClient: async (id, payload) => saveAction("Client modifié", async () => {
+      const { error } = await supabase.from("clients").update(payload).eq("id", id);
+      if (error) throw error;
+    }),
+
     deleteClient: async (id) => saveAction("Client supprimé", async () => {
-      let r = await supabase.from("contracts").delete().eq("client_id", id); if (r.error) throw r.error;
-      r = await supabase.from("tasks").delete().eq("client_id", id); if (r.error) throw r.error;
-      r = await supabase.from("deals").delete().eq("client_id", id); if (r.error) throw r.error;
-      r = await supabase.from("claims").delete().eq("client_id", id); if (r.error) throw r.error;
-      r = await supabase.from("clients").delete().eq("id", id); if (r.error) throw r.error;
+      let r = await supabase.from("contracts").delete().eq("client_id", id);
+      if (r.error) throw r.error;
+      r = await supabase.from("tasks").delete().eq("client_id", id);
+      if (r.error) throw r.error;
+      r = await supabase.from("deals").delete().eq("client_id", id);
+      if (r.error) throw r.error;
+      r = await supabase.from("claims").delete().eq("client_id", id);
+      if (r.error) throw r.error;
+      r = await supabase.from("clients").delete().eq("id", id);
+      if (r.error) throw r.error;
     }),
-    addContract: async (payload) => saveAction("Contrat ajouté", async () => { const { error } = await supabase.from("contracts").insert([{ ...payload }]); if (error) throw error; }),
-    updateContract: async (id, payload) => saveAction("Contrat modifié", async () => { const { error } = await supabase.from("contracts").update(payload).eq("id", id); if (error) throw error; }),
-    deleteContract: async (id) => saveAction("Contrat supprimé", async () => { const { error } = await supabase.from("contracts").delete().eq("id", id); if (error) throw error; }),
-    addTask: async (payload) => saveAction("Tâche ajoutée", async () => { const { error } = await supabase.from("tasks").insert([{ ...payload }]); if (error) throw error; }),
-    updateTask: async (id, payload) => saveAction("Tâche modifiée", async () => { const { error } = await supabase.from("tasks").update(payload).eq("id", id); if (error) throw error; }),
-    deleteTask: async (id) => saveAction("Tâche supprimée", async () => { const { error } = await supabase.from("tasks").delete().eq("id", id); if (error) throw error; }),
-    toggleTask: async (task) => saveAction(task.done ? "Tâche réouverte" : "Tâche terminée", async () => { const { error } = await supabase.from("tasks").update({ done: !task.done }).eq("id", task.id); if (error) throw error; }),
-    addDeal: async (payload) => saveAction("Opportunité ajoutée", async () => { const { error } = await supabase.from("deals").insert([{ ...payload }]); if (error) throw error; }),
-    updateDeal: async (id, payload) => saveAction("Opportunité modifiée", async () => { const { error } = await supabase.from("deals").update(payload).eq("id", id); if (error) throw error; }),
-    deleteDeal: async (id) => saveAction("Opportunité supprimée", async () => { const { error } = await supabase.from("deals").delete().eq("id", id); if (error) throw error; }),
-    moveDeal: async (id, stage) => saveAction("Pipeline mis à jour", async () => { const { error } = await supabase.from("deals").update({ stage }).eq("id", id); if (error) throw error; }, "info"),
-    addClaim: async (payload) => saveAction("Sinistre ajouté", async () => { const { error } = await supabase.from("claims").insert([{ ...payload }]); if (error) throw error; }),
-    updateClaim: async (id, payload) => saveAction("Sinistre modifié", async () => { const { error } = await supabase.from("claims").update(payload).eq("id", id); if (error) throw error; }),
-    deleteClaim: async (id) => saveAction("Sinistre supprimé", async () => { const { error } = await supabase.from("claims").delete().eq("id", id); if (error) throw error; }),
-    addArtisan: async (payload) => saveAction("Dossier artisan ajouté", async () => { const { error } = await supabase.from("artisans").insert([{ ...payload }]); if (error) throw error; }),
-    updateArtisan: async (id, payload) => saveAction("Dossier artisan modifié", async () => { const { error } = await supabase.from("artisans").update(payload).eq("id", id); if (error) throw error; }),
-    deleteArtisan: async (id) => saveAction("Dossier artisan supprimé", async () => { const { error } = await supabase.from("artisans").delete().eq("id", id); if (error) throw error; }),
+
+    addContract: async (payload) => saveAction("Contrat ajouté", async () => {
+      const { error } = await supabase.from("contracts").insert([{ ...payload }]);
+      if (error) throw error;
+    }),
+
+    updateContract: async (id, payload) => saveAction("Contrat modifié", async () => {
+      const { error } = await supabase.from("contracts").update(payload).eq("id", id);
+      if (error) throw error;
+    }),
+
+    deleteContract: async (id) => saveAction("Contrat supprimé", async () => {
+      const { error } = await supabase.from("contracts").delete().eq("id", id);
+      if (error) throw error;
+    }),
+
+    addTask: async (payload) => saveAction("Tâche ajoutée", async () => {
+      const { error } = await supabase.from("tasks").insert([{ ...payload }]);
+      if (error) throw error;
+    }),
+
+    updateTask: async (id, payload) => saveAction("Tâche modifiée", async () => {
+      const { error } = await supabase.from("tasks").update(payload).eq("id", id);
+      if (error) throw error;
+    }),
+
+    deleteTask: async (id) => saveAction("Tâche supprimée", async () => {
+      const { error } = await supabase.from("tasks").delete().eq("id", id);
+      if (error) throw error;
+    }),
+
+    toggleTask: async (task) => saveAction(task.done ? "Tâche réouverte" : "Tâche terminée", async () => {
+      const { error } = await supabase.from("tasks").update({ done: !task.done }).eq("id", task.id);
+      if (error) throw error;
+    }),
+
+    addDeal: async (payload) => saveAction("Opportunité ajoutée", async () => {
+      const { error } = await supabase.from("deals").insert([{ ...payload }]);
+      if (error) throw error;
+    }),
+
+    updateDeal: async (id, payload) => saveAction("Opportunité modifiée", async () => {
+      const { error } = await supabase.from("deals").update(payload).eq("id", id);
+      if (error) throw error;
+    }),
+
+    deleteDeal: async (id) => saveAction("Opportunité supprimée", async () => {
+      const { error } = await supabase.from("deals").delete().eq("id", id);
+      if (error) throw error;
+    }),
+
+    moveDeal: async (id, stage) => saveAction("Pipeline mis à jour", async () => {
+      const { error } = await supabase.from("deals").update({ stage }).eq("id", id);
+      if (error) throw error;
+    }, "info"),
+
+    addClaim: async (payload) => saveAction("Sinistre ajouté", async () => {
+      const { error } = await supabase.from("claims").insert([{ ...payload }]);
+      if (error) throw error;
+    }),
+
+    updateClaim: async (id, payload) => saveAction("Sinistre modifié", async () => {
+      const { error } = await supabase.from("claims").update(payload).eq("id", id);
+      if (error) throw error;
+    }),
+
+    deleteClaim: async (id) => saveAction("Sinistre supprimé", async () => {
+      const { error } = await supabase.from("claims").delete().eq("id", id);
+      if (error) throw error;
+    }),
+
+    addArtisan: async (payload) => saveAction("Dossier artisan ajouté", async () => {
+      const { error } = await supabase.from("artisans").insert([{ ...payload }]);
+      if (error) throw error;
+    }),
+
+    updateArtisan: async (id, payload) => saveAction("Dossier artisan modifié", async () => {
+      const { error } = await supabase.from("artisans").update(payload).eq("id", id);
+      if (error) throw error;
+    }),
+
+    deleteArtisan: async (id) => saveAction("Dossier artisan supprimé", async () => {
+      const { error } = await supabase.from("artisans").delete().eq("id", id);
+      if (error) throw error;
+    }),
   };
 
   return { data, actions, loading, error, toasts, removeToast };
 }
 
 function KPI({ label, value, delta, icon }) {
-  return <div className="card stat"><div className="row" style={{justifyContent:"space-between", alignItems:"center"}}><div className="label">{label}</div><div className="kpi-icon">{icon}</div></div><div className="value">{value}</div>{delta ? <div className="delta">{delta}</div> : null}</div>;
+  return (
+    <div className="card stat">
+      <div className="row" style={{justifyContent:"space-between", alignItems:"center"}}>
+        <div className="label">{label}</div>
+        <div className="kpi-icon">{icon}</div>
+      </div>
+      <div className="value">{value}</div>
+      {delta ? <div className="delta">{delta}</div> : null}
+    </div>
+  );
 }
 
 function Dashboard({ data }) {
@@ -295,49 +429,76 @@ function Dashboard({ data }) {
   const urgentTasks = data.tasks.filter((t) => ["Haute", "Urgente"].includes(t.priorite) && !t.done).length;
   const nextRenewals = [...data.contracts].slice(0, 5);
 
-  return <div className="col">
-    <div className="grid4">
-      <KPI label="Clients" value={data.clients.length} delta={`${prospects} prospects`} icon="👥" />
-      <KPI label="Contrats actifs" value={activeContracts.length} delta={`${wonDeals} opportunités gagnées`} icon="📄" />
-      <KPI label="Primes" value={euro(totalPrime)} delta={`${euro(totalCommission)} commissions`} icon="💶" />
-      <KPI label="Transformation" value={`${conversionRate}%`} delta={`${urgentTasks} tâches prioritaires`} icon="📈" />
-    </div>
+  return (
+    <div className="col">
+      <div className="grid4">
+        <KPI label="Clients" value={data.clients.length} delta={`${prospects} prospects`} icon="👥" />
+        <KPI label="Contrats actifs" value={activeContracts.length} delta={`${wonDeals} opportunités gagnées`} icon="📄" />
+        <KPI label="Primes" value={euro(totalPrime)} delta={`${euro(totalCommission)} commissions`} icon="💶" />
+        <KPI label="Transformation" value={`${conversionRate}%`} delta={`${urgentTasks} tâches prioritaires`} icon="📈" />
+      </div>
 
-    <div className="grid3">
-      <div className="card">
-        <div className="title" style={{fontSize:20, marginBottom:10}}>Vue dirigeant</div>
-        <div className="metricline"><span>Sinistres ouverts</span><strong>{openClaims}</strong></div>
-        <div className="metricline"><span>Tâches ouvertes</span><strong>{todo}</strong></div>
-        <div className="metricline"><span>Dossiers artisans</span><strong>{data.artisans.length}</strong></div>
-        <div className="metricline"><span>Pipeline total</span><strong>{euro(data.deals.reduce((s, d) => s + Number(d.montant || 0), 0))}</strong></div>
-      </div>
-      <div className="card">
-        <div className="title" style={{fontSize:20, marginBottom:10}}>Évolution des primes</div>
-        <MiniSpark values={sparkValues} />
-        <div className="small">Tendance sur les 6 derniers points d’entrée contrats.</div>
-      </div>
-      <div className="card">
-        <div className="title" style={{fontSize:20, marginBottom:10}}>Pipeline commercial</div>
-        {STAGES.map((s) => {
-          const count = data.deals.filter((d) => d.stage === s.id).length;
-          const pct = data.deals.length ? Math.round((count / data.deals.length) * 100) : 0;
-          return <div key={s.id} style={{marginBottom:10}}><div className="metricline"><span>{s.label}</span><strong>{count}</strong></div><div className="progress"><span style={{width:`${pct}%`, background:s.color}} /></div></div>;
-        })}
-      </div>
-    </div>
+      <div className="grid3">
+        <div className="card">
+          <div className="title" style={{fontSize:20, marginBottom:10}}>Vue dirigeant</div>
+          <div className="metricline"><span>Sinistres ouverts</span><strong>{openClaims}</strong></div>
+          <div className="metricline"><span>Tâches ouvertes</span><strong>{todo}</strong></div>
+          <div className="metricline"><span>Dossiers artisans</span><strong>{data.artisans.length}</strong></div>
+          <div className="metricline"><span>Pipeline total</span><strong>{euro(data.deals.reduce((s, d) => s + Number(d.montant || 0), 0))}</strong></div>
+        </div>
 
-    <div className="grid2">
-      <div className="card">
-        <div className="title" style={{fontSize:20, marginBottom:10}}>Actions rapides</div>
-        <div className="helper"><div><strong>Relances commerciales</strong><div className="small">Passe sur l’onglet Clients pour appeler, envoyer un mail ou WhatsApp.</div></div><span>📲</span></div>
-        <div className="helper" style={{marginTop:12}}><div><strong>Pôle artisans</strong><div className="small">Transforme les créations d’entreprise en contrats récurrents.</div></div><span>🛠️</span></div>
+        <div className="card">
+          <div className="title" style={{fontSize:20, marginBottom:10}}>Évolution des primes</div>
+          <MiniSpark values={sparkValues} />
+          <div className="small">Tendance sur les 6 derniers points d’entrée contrats.</div>
+        </div>
+
+        <div className="card">
+          <div className="title" style={{fontSize:20, marginBottom:10}}>Pipeline commercial</div>
+          {STAGES.map((s) => {
+            const count = data.deals.filter((d) => d.stage === s.id).length;
+            const pct = data.deals.length ? Math.round((count / data.deals.length) * 100) : 0;
+            return (
+              <div key={s.id} style={{marginBottom:10}}>
+                <div className="metricline"><span>{s.label}</span><strong>{count}</strong></div>
+                <div className="progress"><span style={{width:`${pct}%`, background:s.color}} /></div>
+              </div>
+            );
+          })}
+        </div>
       </div>
-      <div className="card">
-        <div className="title" style={{fontSize:20, marginBottom:10}}>Derniers contrats</div>
-        {nextRenewals.length === 0 ? <div className="small">Aucun contrat pour le moment.</div> : nextRenewals.map((c) => <div key={c.id} className="metricline"><span>{c.police || "Contrat"} · {c.compagnie || "—"}</span><strong>{euro(c.prime)}</strong></div>)}
+
+      <div className="grid2">
+        <div className="card">
+          <div className="title" style={{fontSize:20, marginBottom:10}}>Actions rapides</div>
+          <div className="helper">
+            <div>
+              <strong>Relances commerciales</strong>
+              <div className="small">Passe sur l’onglet Clients pour appeler, envoyer un mail ou WhatsApp.</div>
+            </div>
+            <span>📲</span>
+          </div>
+          <div className="helper" style={{marginTop:12}}>
+            <div>
+              <strong>Pôle artisans</strong>
+              <div className="small">Transforme les créations d’entreprise en contrats récurrents.</div>
+            </div>
+            <span>🛠️</span>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="title" style={{fontSize:20, marginBottom:10}}>Derniers contrats</div>
+          {nextRenewals.length === 0 ? <div className="small">Aucun contrat pour le moment.</div> : nextRenewals.map((c) => (
+            <div key={c.id} className="metricline">
+              <span>{c.police || "Contrat"} · {c.compagnie || "—"}</span>
+              <strong>{euro(c.prime)}</strong>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
-  </div>;
+  );
 }
 
 function Clients({ data, actions }) {
@@ -345,38 +506,83 @@ function Clients({ data, actions }) {
   const [open, setOpen] = useState(false);
   const [edit, setEdit] = useState(null);
   const [toDelete, setToDelete] = useState(null);
+
   const filtered = useMemo(() => data.clients.filter((c) => lower(`${c.prenom} ${c.nom} ${c.email} ${c.tel} ${c.ville} ${c.statut}`).includes(lower(q))), [data.clients, q]);
+
   const openWhatsApp = (tel) => window.open(`https://wa.me/33${String(tel || "").replace(/\D/g, "").replace(/^0/, "")}`, "_blank");
   const openMail = (email) => window.open(`mailto:${email}`, "_blank");
-  return <>
-    <div className="topbar">
-      <div><div className="title">Clients</div><div className="subtitle">Pilotage client, relances et accès rapide aux actions commerciales.</div></div>
-      <div className="filterbar">
-        <input className="input searchbar" placeholder="Rechercher un client..." value={q} onChange={(e)=>setQ(e.target.value)} />
-        <button className="btn" onClick={() => exportCSV("clients.csv", [["Prénom","Nom","Email","Téléphone","Ville","Statut"], ...filtered.map(c=>[c.prenom,c.nom,c.email,c.tel,c.ville,c.statut])])}>Exporter CSV</button>
-        <button className="btn primary" onClick={()=>{setEdit(null);setOpen(true);}}>+ Nouveau client</button>
+
+  return (
+    <>
+      <div className="topbar">
+        <div>
+          <div className="title">Clients</div>
+          <div className="subtitle">Pilotage client, relances et accès rapide aux actions commerciales.</div>
+        </div>
+        <div className="filterbar">
+          <input className="input searchbar" placeholder="Rechercher un client..." value={q} onChange={(e)=>setQ(e.target.value)} />
+          <button className="btn" onClick={() => exportCSV("clients.csv", [["Prénom","Nom","Email","Téléphone","Ville","Statut"], ...filtered.map(c=>[c.prenom,c.nom,c.email,c.tel,c.ville,c.statut])])}>Exporter CSV</button>
+          <button className="btn primary" onClick={()=>{setEdit(null);setOpen(true);}}>+ Nouveau client</button>
+        </div>
       </div>
-    </div>
-    <div className="tablewrap"><table className="table"><thead><tr><th>Nom</th><th>Email</th><th>Téléphone</th><th>Ville</th><th>Statut</th><th>Actions</th></tr></thead><tbody>{filtered.map(c=><tr key={c.id}><td className="name">{clientName(c)}</td><td>{c.email || "—"}</td><td>{c.tel || "—"}</td><td>{c.ville || "—"}</td><td><Badge>{c.statut || "Prospect"}</Badge></td><td><div className="actions"><button className="btn" onClick={()=>{setEdit(c);setOpen(true);}}>Modifier</button><button className="btn light" onClick={()=>openMail(c.email)}>Mail</button><button className="btn light" onClick={()=>openWhatsApp(c.tel)}>WhatsApp</button><button className="btn danger" onClick={()=>setToDelete(c)}>Supprimer</button></div></td></tr>)}</tbody></table></div>
-    {open && <ClientForm client={edit} onClose={()=>setOpen(false)} onSave={async (payload)=>{ edit ? await actions.updateClient(edit.id, payload) : await actions.addClient(payload); setOpen(false); }} />}
-    {toDelete && <ConfirmDialog title="Supprimer le client" message={`Supprimer ${clientName(toDelete)} et ses données liées ?`} onClose={()=>setToDelete(null)} onConfirm={async ()=>{ await actions.deleteClient(toDelete.id); setToDelete(null); }} />}
-  </>;
+
+      <div className="tablewrap">
+        <table className="table">
+          <thead>
+            <tr><th>Nom</th><th>Email</th><th>Téléphone</th><th>Ville</th><th>Statut</th><th>Actions</th></tr>
+          </thead>
+          <tbody>
+            {filtered.map(c => (
+              <tr key={c.id}>
+                <td className="name">{clientName(c)}</td>
+                <td>{c.email || "—"}</td>
+                <td>{c.tel || "—"}</td>
+                <td>{c.ville || "—"}</td>
+                <td><Badge>{c.statut || "Prospect"}</Badge></td>
+                <td>
+                  <div className="actions">
+                    <button className="btn" onClick={()=>{setEdit(c);setOpen(true);}}>Modifier</button>
+                    <button className="btn light" onClick={()=>openMail(c.email)}>Mail</button>
+                    <button className="btn light" onClick={()=>openWhatsApp(c.tel)}>WhatsApp</button>
+                    <button className="btn danger" onClick={()=>setToDelete(c)}>Supprimer</button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {open && <ClientForm client={edit} onClose={()=>setOpen(false)} onSave={async (payload)=>{ edit ? await actions.updateClient(edit.id, payload) : await actions.addClient(payload); setOpen(false); }} />}
+      {toDelete && <ConfirmDialog title="Supprimer le client" message={`Supprimer ${clientName(toDelete)} et ses données liées ?`} onClose={()=>setToDelete(null)} onConfirm={async ()=>{ await actions.deleteClient(toDelete.id); setToDelete(null); }} />}
+    </>
+  );
 }
 
 function ClientForm({ client, onClose, onSave }) {
   const [form, setForm] = useState(client || { prenom:"", nom:"", email:"", tel:"", ville:"", statut:"Prospect" });
   const set = (k,v)=>setForm(s=>({...s,[k]:v}));
-  return <Modal title={client ? "Modifier le client" : "Nouveau client"} onClose={onClose}>
-    <div className="formgrid">
-      <input className="input" placeholder="Prénom" value={form.prenom} onChange={e=>set("prenom", e.target.value)} />
-      <input className="input" placeholder="Nom" value={form.nom} onChange={e=>set("nom", e.target.value)} />
-      <input className="input" placeholder="Email" value={form.email} onChange={e=>set("email", e.target.value)} />
-      <input className="input" placeholder="Téléphone" value={form.tel} onChange={e=>set("tel", e.target.value)} />
-      <input className="input" placeholder="Ville" value={form.ville} onChange={e=>set("ville", e.target.value)} />
-      <select className="select" value={form.statut} onChange={e=>set("statut", e.target.value)}><option>Prospect</option><option>Client actif</option><option>Ancien client</option></select>
-    </div>
-    <div className="row" style={{justifyContent:"flex-end", marginTop:16}}><button className="btn" onClick={onClose}>Annuler</button><button className="btn primary" onClick={()=>onSave(form)}>Enregistrer</button></div>
-  </Modal>;
+
+  return (
+    <Modal title={client ? "Modifier le client" : "Nouveau client"} onClose={onClose}>
+      <div className="formgrid">
+        <input className="input" placeholder="Prénom" value={form.prenom} onChange={e=>set("prenom", e.target.value)} />
+        <input className="input" placeholder="Nom" value={form.nom} onChange={e=>set("nom", e.target.value)} />
+        <input className="input" placeholder="Email" value={form.email} onChange={e=>set("email", e.target.value)} />
+        <input className="input" placeholder="Téléphone" value={form.tel} onChange={e=>set("tel", e.target.value)} />
+        <input className="input" placeholder="Ville" value={form.ville} onChange={e=>set("ville", e.target.value)} />
+        <select className="select" value={form.statut} onChange={e=>set("statut", e.target.value)}>
+          <option>Prospect</option>
+          <option>Client actif</option>
+          <option>Ancien client</option>
+        </select>
+      </div>
+      <div className="row" style={{justifyContent:"flex-end", marginTop:16}}>
+        <button className="btn" onClick={onClose}>Annuler</button>
+        <button className="btn primary" onClick={()=>onSave(form)}>Enregistrer</button>
+      </div>
+    </Modal>
+  );
 }
 
 function Contracts({ data, actions }) {
@@ -384,32 +590,82 @@ function Contracts({ data, actions }) {
   const [edit, setEdit] = useState(null);
   const [toDelete, setToDelete] = useState(null);
   const [q, setQ] = useState("");
+
   const rows = data.contracts.filter(c => lower(`${c.police} ${c.compagnie} ${clientName(data.clients.find(x=>x.id===c.client_id))} ${c.statut}`).includes(lower(q)));
-  return <>
-    <div className="topbar">
-      <div><div className="title">Contrats</div><div className="subtitle">Suivi des polices, des primes et des commissions.</div></div>
-      <div className="filterbar"><input className="input searchbar" placeholder="Rechercher un contrat..." value={q} onChange={e=>setQ(e.target.value)} /><button className="btn" onClick={()=>exportCSV("contrats.csv", [["Police","Client","Compagnie","Prime","Commission","Statut"], ...rows.map(c=>[c.police, clientName(data.clients.find(x=>x.id===c.client_id)), c.compagnie, c.prime, c.commission, c.statut])])}>Exporter CSV</button><button className="btn primary" onClick={()=>{setEdit(null);setOpen(true);}}>+ Nouveau contrat</button></div>
-    </div>
-    <div className="tablewrap"><table className="table"><thead><tr><th>Police</th><th>Client</th><th>Compagnie</th><th>Prime</th><th>Commission</th><th>Statut</th><th>Actions</th></tr></thead><tbody>{rows.map(c=>{ const cl = data.clients.find(x=>x.id===c.client_id); return <tr key={c.id}><td className="name">{c.police}</td><td>{clientName(cl)}</td><td>{c.compagnie}</td><td>{euro(c.prime)}</td><td>{euro(c.commission)}</td><td><Badge>{c.statut}</Badge></td><td><div className="actions"><button className="btn" onClick={()=>{setEdit(c);setOpen(true);}}>Modifier</button><button className="btn danger" onClick={()=>setToDelete(c)}>Supprimer</button></div></td></tr>; })}</tbody></table></div>
-    {open && <ContractForm clients={data.clients} contract={edit} onClose={()=>setOpen(false)} onSave={async (payload)=>{ edit ? await actions.updateContract(edit.id, payload) : await actions.addContract(payload); setOpen(false); }} />}
-    {toDelete && <ConfirmDialog title="Supprimer le contrat" message={`Supprimer le contrat ${toDelete.police || "—"} ?`} onClose={()=>setToDelete(null)} onConfirm={async ()=>{ await actions.deleteContract(toDelete.id); setToDelete(null); }} />}
-  </>;
+
+  return (
+    <>
+      <div className="topbar">
+        <div>
+          <div className="title">Contrats</div>
+          <div className="subtitle">Suivi des polices, des primes et des commissions.</div>
+        </div>
+        <div className="filterbar">
+          <input className="input searchbar" placeholder="Rechercher un contrat..." value={q} onChange={e=>setQ(e.target.value)} />
+          <button className="btn" onClick={()=>exportCSV("contrats.csv", [["Police","Client","Compagnie","Prime","Commission","Statut"], ...rows.map(c=>[c.police, clientName(data.clients.find(x=>x.id===c.client_id)), c.compagnie, c.prime, c.commission, c.statut])])}>Exporter CSV</button>
+          <button className="btn primary" onClick={()=>{setEdit(null);setOpen(true);}}>+ Nouveau contrat</button>
+        </div>
+      </div>
+
+      <div className="tablewrap">
+        <table className="table">
+          <thead>
+            <tr><th>Police</th><th>Client</th><th>Compagnie</th><th>Prime</th><th>Commission</th><th>Statut</th><th>Actions</th></tr>
+          </thead>
+          <tbody>
+            {rows.map(c => {
+              const cl = data.clients.find(x=>x.id===c.client_id);
+              return (
+                <tr key={c.id}>
+                  <td className="name">{c.police}</td>
+                  <td>{clientName(cl)}</td>
+                  <td>{c.compagnie}</td>
+                  <td>{euro(c.prime)}</td>
+                  <td>{euro(c.commission)}</td>
+                  <td><Badge>{c.statut}</Badge></td>
+                  <td>
+                    <div className="actions">
+                      <button className="btn" onClick={()=>{setEdit(c);setOpen(true);}}>Modifier</button>
+                      <button className="btn danger" onClick={()=>setToDelete(c)}>Supprimer</button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {open && <ContractForm clients={data.clients} contract={edit} onClose={()=>setOpen(false)} onSave={async (payload)=>{ edit ? await actions.updateContract(edit.id, payload) : await actions.addContract(payload); setOpen(false); }} />}
+      {toDelete && <ConfirmDialog title="Supprimer le contrat" message={`Supprimer le contrat ${toDelete.police || "—"} ?`} onClose={()=>setToDelete(null)} onConfirm={async ()=>{ await actions.deleteContract(toDelete.id); setToDelete(null); }} />}
+    </>
+  );
 }
 
 function ContractForm({ clients, contract, onClose, onSave }) {
   const [form, setForm] = useState(contract || { client_id: clients[0]?.id || "", police:"", compagnie:"", prime:"", commission:"", statut:"Actif" });
   const set = (k,v)=>setForm(s=>({...s,[k]:v}));
-  return <Modal title={contract ? "Modifier le contrat" : "Nouveau contrat"} onClose={onClose}>
-    <div className="formgrid">
-      <select className="select" value={form.client_id} onChange={e=>set("client_id",e.target.value)}>{clients.map(c=><option key={c.id} value={c.id}>{clientName(c)}</option>)}</select>
-      <input className="input" placeholder="N° police" value={form.police} onChange={e=>set("police",e.target.value)} />
-      <input className="input" placeholder="Compagnie" value={form.compagnie} onChange={e=>set("compagnie",e.target.value)} />
-      <input className="input" placeholder="Prime" type="number" value={form.prime} onChange={e=>set("prime",e.target.value)} />
-      <input className="input" placeholder="Commission" type="number" value={form.commission} onChange={e=>set("commission",e.target.value)} />
-      <select className="select" value={form.statut} onChange={e=>set("statut",e.target.value)}><option>Actif</option><option>En attente</option><option>Résilié</option></select>
-    </div>
-    <div className="row" style={{justifyContent:"flex-end", marginTop:16}}><button className="btn" onClick={onClose}>Annuler</button><button className="btn primary" onClick={()=>onSave({...form, prime:Number(form.prime), commission:Number(form.commission)})}>Enregistrer</button></div>
-  </Modal>;
+
+  return (
+    <Modal title={contract ? "Modifier le contrat" : "Nouveau contrat"} onClose={onClose}>
+      <div className="formgrid">
+        <select className="select" value={form.client_id} onChange={e=>set("client_id",e.target.value)}>{clients.map(c=><option key={c.id} value={c.id}>{clientName(c)}</option>)}</select>
+        <input className="input" placeholder="N° police" value={form.police} onChange={e=>set("police",e.target.value)} />
+        <input className="input" placeholder="Compagnie" value={form.compagnie} onChange={e=>set("compagnie",e.target.value)} />
+        <input className="input" placeholder="Prime" type="number" value={form.prime} onChange={e=>set("prime",e.target.value)} />
+        <input className="input" placeholder="Commission" type="number" value={form.commission} onChange={e=>set("commission",e.target.value)} />
+        <select className="select" value={form.statut} onChange={e=>set("statut",e.target.value)}>
+          <option>Actif</option>
+          <option>En attente</option>
+          <option>Résilié</option>
+        </select>
+      </div>
+      <div className="row" style={{justifyContent:"flex-end", marginTop:16}}>
+        <button className="btn" onClick={onClose}>Annuler</button>
+        <button className="btn primary" onClick={()=>onSave({...form, prime:Number(form.prime), commission:Number(form.commission)})}>Enregistrer</button>
+      </div>
+    </Modal>
+  );
 }
 
 function Tasks({ data, actions }) {
@@ -417,30 +673,77 @@ function Tasks({ data, actions }) {
   const [edit, setEdit] = useState(null);
   const [toDelete, setToDelete] = useState(null);
   const [status, setStatus] = useState("toutes");
+
   const tasks = data.tasks.filter((t) => status === "toutes" ? true : status === "faites" ? t.done : !t.done);
-  return <>
-    <div className="topbar">
-      <div><div className="title">Tâches</div><div className="subtitle">Organisation des relances et priorités du cabinet.</div></div>
-      <div className="filterbar"><select className="select" style={{width:180}} value={status} onChange={(e)=>setStatus(e.target.value)}><option value="toutes">Toutes</option><option value="ouvertes">Ouvertes</option><option value="faites">Faites</option></select><button className="btn primary" onClick={()=>{setEdit(null);setOpen(true);}}>+ Nouvelle tâche</button></div>
-    </div>
-    <div className="col">{tasks.map(t=>{ const cl = data.clients.find(c=>c.id===t.client_id); return <div className="card" key={t.id} style={{opacity:t.done?.78:1}}><div className="row" style={{justifyContent:"space-between", alignItems:"center"}}><div><div style={{fontWeight:900, textDecoration:t.done?"line-through":"none"}}>{t.titre}</div><div className="small">{clientName(cl)} · échéance {fmtDate(t.echeance)}</div></div><div className="actions"><Badge>{t.priorite}</Badge><button className={`btn ${t.done ? "" : "good"}`} onClick={()=>actions.toggleTask(t)}>{t.done ? "Réouvrir" : "Terminer"}</button><button className="btn" onClick={()=>{setEdit(t);setOpen(true);}}>Modifier</button><button className="btn danger" onClick={()=>setToDelete(t)}>Supprimer</button></div></div></div>;})}</div>
-    {open && <TaskForm clients={data.clients} task={edit} onClose={()=>setOpen(false)} onSave={async (payload)=>{ edit ? await actions.updateTask(edit.id, payload) : await actions.addTask(payload); setOpen(false); }} />}
-    {toDelete && <ConfirmDialog title="Supprimer la tâche" message={`Supprimer la tâche “${toDelete.titre}” ?`} onClose={()=>setToDelete(null)} onConfirm={async ()=>{ await actions.deleteTask(toDelete.id); setToDelete(null); }} />}
-  </>;
+
+  return (
+    <>
+      <div className="topbar">
+        <div>
+          <div className="title">Tâches</div>
+          <div className="subtitle">Organisation des relances et priorités du cabinet.</div>
+        </div>
+        <div className="filterbar">
+          <select className="select" style={{width:180}} value={status} onChange={(e)=>setStatus(e.target.value)}>
+            <option value="toutes">Toutes</option>
+            <option value="ouvertes">Ouvertes</option>
+            <option value="faites">Faites</option>
+          </select>
+          <button className="btn primary" onClick={()=>{setEdit(null);setOpen(true);}}>+ Nouvelle tâche</button>
+        </div>
+      </div>
+
+      <div className="col">
+        {tasks.map(t => {
+          const cl = data.clients.find(c=>c.id===t.client_id);
+          return (
+            <div className="card" key={t.id} style={{opacity:t.done ? .78 : 1}}>
+              <div className="row" style={{justifyContent:"space-between", alignItems:"center"}}>
+                <div>
+                  <div style={{fontWeight:900, textDecoration:t.done ? "line-through" : "none"}}>{t.titre}</div>
+                  <div className="small">{clientName(cl)} · échéance {fmtDate(t.echeance)}</div>
+                </div>
+                <div className="actions">
+                  <Badge>{t.priorite}</Badge>
+                  <button className={`btn ${t.done ? "" : "good"}`} onClick={()=>actions.toggleTask(t)}>{t.done ? "Réouvrir" : "Terminer"}</button>
+                  <button className="btn" onClick={()=>{setEdit(t);setOpen(true);}}>Modifier</button>
+                  <button className="btn danger" onClick={()=>setToDelete(t)}>Supprimer</button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {open && <TaskForm clients={data.clients} task={edit} onClose={()=>setOpen(false)} onSave={async (payload)=>{ edit ? await actions.updateTask(edit.id, payload) : await actions.addTask(payload); setOpen(false); }} />}
+      {toDelete && <ConfirmDialog title="Supprimer la tâche" message={`Supprimer la tâche “${toDelete.titre}” ?`} onClose={()=>setToDelete(null)} onConfirm={async ()=>{ await actions.deleteTask(toDelete.id); setToDelete(null); }} />}
+    </>
+  );
 }
 
 function TaskForm({ clients, task, onClose, onSave }) {
   const [form, setForm] = useState(task || { client_id: clients[0]?.id || "", titre:"", echeance:today(), priorite:"Normale", done:false });
   const set = (k,v)=>setForm(s=>({...s,[k]:v}));
-  return <Modal title={task ? "Modifier la tâche" : "Nouvelle tâche"} onClose={onClose}>
-    <div className="formgrid">
-      <select className="select" value={form.client_id} onChange={e=>set("client_id",e.target.value)}>{clients.map(c=><option key={c.id} value={c.id}>{clientName(c)}</option>)}</select>
-      <input className="input" placeholder="Titre" value={form.titre} onChange={e=>set("titre",e.target.value)} />
-      <input className="input" type="date" value={form.echeance} onChange={e=>set("echeance",e.target.value)} />
-      <select className="select" value={form.priorite} onChange={e=>set("priorite",e.target.value)}><option>Basse</option><option>Normale</option><option>Haute</option><option>Urgente</option></select>
-    </div>
-    <div className="row" style={{justifyContent:"flex-end", marginTop:16}}><button className="btn" onClick={onClose}>Annuler</button><button className="btn primary" onClick={()=>onSave(form)}>Enregistrer</button></div>
-  </Modal>;
+
+  return (
+    <Modal title={task ? "Modifier la tâche" : "Nouvelle tâche"} onClose={onClose}>
+      <div className="formgrid">
+        <select className="select" value={form.client_id} onChange={e=>set("client_id",e.target.value)}>{clients.map(c=><option key={c.id} value={c.id}>{clientName(c)}</option>)}</select>
+        <input className="input" placeholder="Titre" value={form.titre} onChange={e=>set("titre",e.target.value)} />
+        <input className="input" type="date" value={form.echeance} onChange={e=>set("echeance",e.target.value)} />
+        <select className="select" value={form.priorite} onChange={e=>set("priorite",e.target.value)}>
+          <option>Basse</option>
+          <option>Normale</option>
+          <option>Haute</option>
+          <option>Urgente</option>
+        </select>
+      </div>
+      <div className="row" style={{justifyContent:"flex-end", marginTop:16}}>
+        <button className="btn" onClick={onClose}>Annuler</button>
+        <button className="btn primary" onClick={()=>onSave(form)}>Enregistrer</button>
+      </div>
+    </Modal>
+  );
 }
 
 function Pipeline({ data, actions }) {
@@ -448,128 +751,283 @@ function Pipeline({ data, actions }) {
   const [open, setOpen] = useState(false);
   const [edit, setEdit] = useState(null);
   const [toDelete, setToDelete] = useState(null);
-  return <>
-    <div className="topbar">
-      <div><div className="title">Pipeline</div><div className="subtitle">Pilotage commercial du prospect au gagné.</div></div>
-      <div className="filterbar"><button className="btn primary" onClick={()=>{setEdit(null);setOpen(true);}}>+ Opportunité</button></div>
-    </div>
-    <div className="kgrid">{STAGES.map(s=>{ const deals = data.deals.filter(d=>d.stage===s.id); return <div className="kcol" key={s.id} onDragOver={(e)=>e.preventDefault()} onDrop={()=>{ if(!dragId) return; actions.moveDeal(dragId, s.id); setDragId(null); }}><div className="khead"><span>{s.label}</span><span>{deals.length}</span></div><div className="kbody">{deals.map(d=>{ const cl = data.clients.find(c=>c.id===d.client_id); return <div key={d.id} className="kcard" draggable onDragStart={()=>setDragId(d.id)}><div style={{fontWeight:900}}>{d.titre}</div><div className="small">{clientName(cl)}</div><div style={{marginTop:8,fontWeight:900,color:'#c7d2fe'}}>{euro(d.montant)}</div><div className="row" style={{marginTop:10}}><button className="btn" onClick={(e)=>{e.stopPropagation();setEdit(d);setOpen(true);}}>Modifier</button><button className="btn danger" onClick={(e)=>{e.stopPropagation();setToDelete(d);}}>Supprimer</button></div></div>; })}</div></div>; })}</div>
-    {open && <DealForm clients={data.clients} deal={edit} onClose={()=>setOpen(false)} onSave={async (payload)=>{ edit ? await actions.updateDeal(edit.id, payload) : await actions.addDeal(payload); setOpen(false); }} />}
-    {toDelete && <ConfirmDialog title="Supprimer l’opportunité" message={`Supprimer “${toDelete.titre}” ?`} onClose={()=>setToDelete(null)} onConfirm={async ()=>{ await actions.deleteDeal(toDelete.id); setToDelete(null); }} />}
-  </>;
+
+  return (
+    <>
+      <div className="topbar">
+        <div>
+          <div className="title">Pipeline</div>
+          <div className="subtitle">Pilotage commercial du prospect au gagné.</div>
+        </div>
+        <div className="filterbar">
+          <button className="btn primary" onClick={()=>{setEdit(null);setOpen(true);}}>+ Opportunité</button>
+        </div>
+      </div>
+
+      <div className="kgrid">
+        {STAGES.map(s => {
+          const deals = data.deals.filter(d=>d.stage===s.id);
+          return (
+            <div className="kcol" key={s.id} onDragOver={(e)=>e.preventDefault()} onDrop={()=>{ if(!dragId) return; actions.moveDeal(dragId, s.id); setDragId(null); }}>
+              <div className="khead"><span>{s.label}</span><span>{deals.length}</span></div>
+              <div className="kbody">
+                {deals.map(d => {
+                  const cl = data.clients.find(c=>c.id===d.client_id);
+                  return (
+                    <div key={d.id} className="kcard" draggable onDragStart={()=>setDragId(d.id)}>
+                      <div style={{fontWeight:900}}>{d.titre}</div>
+                      <div className="small">{clientName(cl)}</div>
+                      <div style={{marginTop:8,fontWeight:900,color:'#c7d2fe'}}>{euro(d.montant)}</div>
+                      <div className="row" style={{marginTop:10}}>
+                        <button className="btn" onClick={(e)=>{e.stopPropagation();setEdit(d);setOpen(true);}}>Modifier</button>
+                        <button className="btn danger" onClick={(e)=>{e.stopPropagation();setToDelete(d);}}>Supprimer</button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {open && <DealForm clients={data.clients} deal={edit} onClose={()=>setOpen(false)} onSave={async (payload)=>{ edit ? await actions.updateDeal(edit.id, payload) : await actions.addDeal(payload); setOpen(false); }} />}
+      {toDelete && <ConfirmDialog title="Supprimer l’opportunité" message={`Supprimer “${toDelete.titre}” ?`} onClose={()=>setToDelete(null)} onConfirm={async ()=>{ await actions.deleteDeal(toDelete.id); setToDelete(null); }} />}
+    </>
+  );
 }
 
 function DealForm({ clients, deal, onClose, onSave }) {
   const [form, setForm] = useState(deal || { client_id: clients[0]?.id || "", titre:"", montant:"", stage:"lead" });
   const set = (k,v)=>setForm(s=>({...s,[k]:v}));
-  return <Modal title={deal ? "Modifier l’opportunité" : "Nouvelle opportunité"} onClose={onClose}>
-    <div className="formgrid">
-      <select className="select" value={form.client_id} onChange={e=>set("client_id",e.target.value)}>{clients.map(c=><option key={c.id} value={c.id}>{clientName(c)}</option>)}</select>
-      <input className="input" placeholder="Titre" value={form.titre} onChange={e=>set("titre",e.target.value)} />
-      <input className="input" placeholder="Montant" type="number" value={form.montant} onChange={e=>set("montant",e.target.value)} />
-      <select className="select" value={form.stage} onChange={e=>set("stage",e.target.value)}>{STAGES.map(s=><option key={s.id} value={s.id}>{s.label}</option>)}</select>
-    </div>
-    <div className="row" style={{justifyContent:"flex-end", marginTop:16}}><button className="btn" onClick={onClose}>Annuler</button><button className="btn primary" onClick={()=>onSave({...form, montant:Number(form.montant)})}>Enregistrer</button></div>
-  </Modal>;
+
+  return (
+    <Modal title={deal ? "Modifier l’opportunité" : "Nouvelle opportunité"} onClose={onClose}>
+      <div className="formgrid">
+        <select className="select" value={form.client_id} onChange={e=>set("client_id",e.target.value)}>{clients.map(c=><option key={c.id} value={c.id}>{clientName(c)}</option>)}</select>
+        <input className="input" placeholder="Titre" value={form.titre} onChange={e=>set("titre",e.target.value)} />
+        <input className="input" placeholder="Montant" type="number" value={form.montant} onChange={e=>set("montant",e.target.value)} />
+        <select className="select" value={form.stage} onChange={e=>set("stage",e.target.value)}>{STAGES.map(s=><option key={s.id} value={s.id}>{s.label}</option>)}</select>
+      </div>
+      <div className="row" style={{justifyContent:"flex-end", marginTop:16}}>
+        <button className="btn" onClick={onClose}>Annuler</button>
+        <button className="btn primary" onClick={()=>onSave({...form, montant:Number(form.montant)})}>Enregistrer</button>
+      </div>
+    </Modal>
+  );
 }
 
 function Claims({ data, actions }) {
   const [open, setOpen] = useState(false);
   const [edit, setEdit] = useState(null);
   const [toDelete, setToDelete] = useState(null);
-  return <>
-    <div className="topbar">
-      <div><div className="title">Sinistres</div><div className="subtitle">Suivi simple des dossiers sinistre.</div></div>
-      <div className="filterbar"><button className="btn primary" onClick={()=>{setEdit(null);setOpen(true);}}>+ Nouveau sinistre</button></div>
-    </div>
-    <div className="tablewrap"><table className="table"><thead><tr><th>Client</th><th>Description</th><th>Montant</th><th>Statut</th><th>Actions</th></tr></thead><tbody>{data.claims.map(c=>{ const cl = data.clients.find(x=>x.id===c.client_id); return <tr key={c.id}><td className="name">{clientName(cl)}</td><td>{c.description}</td><td>{euro(c.montant)}</td><td><Badge>{c.statut}</Badge></td><td><div className="actions"><button className="btn" onClick={()=>{setEdit(c);setOpen(true);}}>Modifier</button><button className="btn danger" onClick={()=>setToDelete(c)}>Supprimer</button></div></td></tr>; })}</tbody></table></div>
-    {open && <ClaimForm clients={data.clients} claim={edit} onClose={()=>setOpen(false)} onSave={async (payload)=>{ edit ? await actions.updateClaim(edit.id, payload) : await actions.addClaim(payload); setOpen(false); }} />}
-    {toDelete && <ConfirmDialog title="Supprimer le sinistre" message="Confirmer la suppression de ce sinistre ?" onClose={()=>setToDelete(null)} onConfirm={async ()=>{ await actions.deleteClaim(toDelete.id); setToDelete(null); }} />}
-  </>;
+
+  return (
+    <>
+      <div className="topbar">
+        <div>
+          <div className="title">Sinistres</div>
+          <div className="subtitle">Suivi simple des dossiers sinistre.</div>
+        </div>
+        <div className="filterbar">
+          <button className="btn primary" onClick={()=>{setEdit(null);setOpen(true);}}>+ Nouveau sinistre</button>
+        </div>
+      </div>
+
+      <div className="tablewrap">
+        <table className="table">
+          <thead>
+            <tr><th>Client</th><th>Description</th><th>Montant</th><th>Statut</th><th>Actions</th></tr>
+          </thead>
+          <tbody>
+            {data.claims.map(c => {
+              const cl = data.clients.find(x=>x.id===c.client_id);
+              return (
+                <tr key={c.id}>
+                  <td className="name">{clientName(cl)}</td>
+                  <td>{c.description}</td>
+                  <td>{euro(c.montant)}</td>
+                  <td><Badge>{c.statut}</Badge></td>
+                  <td>
+                    <div className="actions">
+                      <button className="btn" onClick={()=>{setEdit(c);setOpen(true);}}>Modifier</button>
+                      <button className="btn danger" onClick={()=>setToDelete(c)}>Supprimer</button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {open && <ClaimForm clients={data.clients} claim={edit} onClose={()=>setOpen(false)} onSave={async (payload)=>{ edit ? await actions.updateClaim(edit.id, payload) : await actions.addClaim(payload); setOpen(false); }} />}
+      {toDelete && <ConfirmDialog title="Supprimer le sinistre" message="Confirmer la suppression de ce sinistre ?" onClose={()=>setToDelete(null)} onConfirm={async ()=>{ await actions.deleteClaim(toDelete.id); setToDelete(null); }} />}
+    </>
+  );
 }
 
 function ClaimForm({ clients, claim, onClose, onSave }) {
   const [form, setForm] = useState(claim || { client_id: clients[0]?.id || "", description:"", montant:"", statut:"Ouvert" });
   const set = (k,v)=>setForm(s=>({...s,[k]:v}));
-  return <Modal title={claim ? "Modifier le sinistre" : "Nouveau sinistre"} onClose={onClose}>
-    <div className="formgrid">
-      <select className="select" value={form.client_id} onChange={e=>set("client_id",e.target.value)}>{clients.map(c=><option key={c.id} value={c.id}>{clientName(c)}</option>)}</select>
-      <input className="input" placeholder="Description" value={form.description} onChange={e=>set("description",e.target.value)} />
-      <input className="input" type="number" placeholder="Montant" value={form.montant} onChange={e=>set("montant",e.target.value)} />
-      <select className="select" value={form.statut} onChange={e=>set("statut",e.target.value)}><option>Ouvert</option><option>En cours</option><option>Clos</option></select>
-    </div>
-    <div className="row" style={{justifyContent:"flex-end", marginTop:16}}><button className="btn" onClick={onClose}>Annuler</button><button className="btn primary" onClick={()=>onSave({...form, montant:Number(form.montant)})}>Enregistrer</button></div>
-  </Modal>;
+
+  return (
+    <Modal title={claim ? "Modifier le sinistre" : "Nouveau sinistre"} onClose={onClose}>
+      <div className="formgrid">
+        <select className="select" value={form.client_id} onChange={e=>set("client_id",e.target.value)}>{clients.map(c=><option key={c.id} value={c.id}>{clientName(c)}</option>)}</select>
+        <input className="input" placeholder="Description" value={form.description} onChange={e=>set("description",e.target.value)} />
+        <input className="input" type="number" placeholder="Montant" value={form.montant} onChange={e=>set("montant",e.target.value)} />
+        <select className="select" value={form.statut} onChange={e=>set("statut",e.target.value)}>
+          <option>Ouvert</option>
+          <option>En cours</option>
+          <option>Clos</option>
+        </select>
+      </div>
+      <div className="row" style={{justifyContent:"flex-end", marginTop:16}}>
+        <button className="btn" onClick={onClose}>Annuler</button>
+        <button className="btn primary" onClick={()=>onSave({...form, montant:Number(form.montant)})}>Enregistrer</button>
+      </div>
+    </Modal>
+  );
 }
 
 function CraftCreation({ data, actions }) {
   const [open, setOpen] = useState(false);
   const [edit, setEdit] = useState(null);
   const [toDelete, setToDelete] = useState(null);
+
   const toggleField = async (caseItem, key) => await actions.updateArtisan(caseItem.id, { [key]: !caseItem[key] });
-  return <>
-    <div className="topbar">
-      <div><div className="title">Création artisan</div><div className="subtitle">Qualification, formalités, assurances pro et conversion en client.</div></div>
-      <div className="filterbar"><button className="btn primary" onClick={()=>{setEdit(null);setOpen(true);}}>+ Dossier artisan</button></div>
-    </div>
-    <div className="col">{data.artisans.map(c => <div className="card" key={c.id}>
-      <div className="row" style={{justifyContent:'space-between', alignItems:'flex-start'}}><div><div style={{fontWeight:900, fontSize:20}}>{c.nom}</div><div className="small">{c.activite} · {c.statut_juridique || '—'}</div></div><Badge>{c.avancement || 'À qualifier'}</Badge></div>
-      <div className="row" style={{marginTop:12}}>
-        <span className="badge" style={{background:'#172554', color:'#93c5fd'}}>INPI : {c.inpi_status || '—'}</span>
-        {c.besoin_decennale && <span className="badge" style={{background:'#3b1219', color:'#fca5a5'}}>Décennale</span>}
-        {c.besoin_rcpro && <span className="badge" style={{background:'#1f2937', color:'#cbd5e1'}}>RC Pro</span>}
+
+  return (
+    <>
+      <div className="topbar">
+        <div>
+          <div className="title">Création artisan</div>
+          <div className="subtitle">Qualification, formalités, assurances pro et conversion en client.</div>
+        </div>
+        <div className="filterbar">
+          <button className="btn primary" onClick={()=>{setEdit(null);setOpen(true);}}>+ Dossier artisan</button>
+        </div>
       </div>
-      <div className="row" style={{marginTop:14}}>
-        <button className={`btn ${c.besoin_decennale ? 'good' : ''}`} onClick={()=>toggleField(c, 'besoin_decennale')}>Décennale</button>
-        <button className={`btn ${c.besoin_rcpro ? 'good' : ''}`} onClick={()=>toggleField(c, 'besoin_rcpro')}>RC Pro</button>
-        <button className="btn" onClick={()=>{setEdit(c);setOpen(true);}}>Modifier</button>
-        <button className="btn danger" onClick={() => setToDelete(c)}>Supprimer</button>
+
+      <div className="col">
+        {data.artisans.map(c => (
+          <div className="card" key={c.id}>
+            <div className="row" style={{justifyContent:'space-between', alignItems:'flex-start'}}>
+              <div>
+                <div style={{fontWeight:900, fontSize:20}}>{c.nom}</div>
+                <div className="small">{c.activite} · {c.statut_juridique || '—'}</div>
+              </div>
+              <Badge>{c.avancement || 'À qualifier'}</Badge>
+            </div>
+
+            <div className="row" style={{marginTop:12}}>
+              <span className="badge" style={{background:'#172554', color:'#93c5fd'}}>INPI : {c.inpi_status || '—'}</span>
+              {c.besoin_decennale && <span className="badge" style={{background:'#3b1219', color:'#fca5a5'}}>Décennale</span>}
+              {c.besoin_rcpro && <span className="badge" style={{background:'#1f2937', color:'#cbd5e1'}}>RC Pro</span>}
+            </div>
+
+            <div className="row" style={{marginTop:14}}>
+              <button className={`btn ${c.besoin_decennale ? 'good' : ''}`} onClick={()=>toggleField(c, 'besoin_decennale')}>Décennale</button>
+              <button className={`btn ${c.besoin_rcpro ? 'good' : ''}`} onClick={()=>toggleField(c, 'besoin_rcpro')}>RC Pro</button>
+              <button className="btn" onClick={()=>{setEdit(c);setOpen(true);}}>Modifier</button>
+              <button className="btn danger" onClick={() => setToDelete(c)}>Supprimer</button>
+            </div>
+
+            <div style={{marginTop:14}}>
+              <div className="small">Notes</div>
+              <div style={{marginTop:6}}>{c.notes || '—'}</div>
+            </div>
+          </div>
+        ))}
       </div>
-      <div style={{marginTop:14}}><div className="small">Notes</div><div style={{marginTop:6}}>{c.notes || '—'}</div></div>
-    </div>)}</div>
-    {open && <CraftForm artisan={edit} onClose={()=>setOpen(false)} onSave={async (payload)=>{ edit ? await actions.updateArtisan(edit.id, payload) : await actions.addArtisan(payload); setOpen(false); }} />}
-    {toDelete && <ConfirmDialog title="Supprimer le dossier artisan" message={`Supprimer ${toDelete.nom} ?`} onClose={()=>setToDelete(null)} onConfirm={async ()=>{ await actions.deleteArtisan(toDelete.id); setToDelete(null); }} />}
-  </>;
+
+      {open && <CraftForm artisan={edit} onClose={()=>setOpen(false)} onSave={async (payload)=>{ edit ? await actions.updateArtisan(edit.id, payload) : await actions.addArtisan(payload); setOpen(false); }} />}
+      {toDelete && <ConfirmDialog title="Supprimer le dossier artisan" message={`Supprimer ${toDelete.nom} ?`} onClose={()=>setToDelete(null)} onConfirm={async ()=>{ await actions.deleteArtisan(toDelete.id); setToDelete(null); }} />}
+    </>
+  );
 }
 
 function CraftForm({ artisan, onClose, onSave }) {
   const [form, setForm] = useState(artisan || { nom:'', activite:'', statut_juridique:'EI', avancement:'À qualifier', besoin_decennale:true, besoin_rcpro:true, inpi_status:'Non démarré', notes:'' });
   const set = (k,v)=>setForm(s=>({...s,[k]:v}));
-  return <Modal title={artisan ? "Modifier le dossier artisan" : "Nouveau dossier artisan"} onClose={onClose}>
-    <div className="formgrid">
-      <input className="input" placeholder="Nom" value={form.nom} onChange={e=>set('nom', e.target.value)} />
-      <input className="input" placeholder="Activité" value={form.activite} onChange={e=>set('activite', e.target.value)} />
-      <select className="select" value={form.statut_juridique} onChange={e=>set('statut_juridique', e.target.value)}><option>EI</option><option>SASU</option><option>EURL</option><option>SARL</option><option>SAS</option></select>
-      <select className="select" value={form.avancement} onChange={e=>set('avancement', e.target.value)}><option>À qualifier</option><option>Dossier en cours</option><option>À déposer</option><option>Immatriculé</option><option>Transformé en client</option></select>
-      <select className="select" value={form.inpi_status} onChange={e=>set('inpi_status', e.target.value)}><option>Non démarré</option><option>À préparer</option><option>En cours</option><option>Déposé</option></select>
-    </div>
-    <div className="row" style={{marginTop:12}}>
-      <label className="small"><input type="checkbox" checked={form.besoin_decennale} onChange={e=>set('besoin_decennale', e.target.checked)} /> Décennale</label>
-      <label className="small"><input type="checkbox" checked={form.besoin_rcpro} onChange={e=>set('besoin_rcpro', e.target.checked)} /> RC Pro</label>
-    </div>
-    <div style={{marginTop:12}}><textarea className="textarea" placeholder="Notes" value={form.notes} onChange={e=>set('notes', e.target.value)} /></div>
-    <div className="row" style={{justifyContent:'flex-end', marginTop:16}}><button className="btn" onClick={onClose}>Annuler</button><button className="btn primary" onClick={()=>onSave(form)}>Enregistrer</button></div>
-  </Modal>;
+
+  return (
+    <Modal title={artisan ? "Modifier le dossier artisan" : "Nouveau dossier artisan"} onClose={onClose}>
+      <div className="formgrid">
+        <input className="input" placeholder="Nom" value={form.nom} onChange={e=>set('nom', e.target.value)} />
+        <input className="input" placeholder="Activité" value={form.activite} onChange={e=>set('activite', e.target.value)} />
+        <select className="select" value={form.statut_juridique} onChange={e=>set('statut_juridique', e.target.value)}>
+          <option>EI</option>
+          <option>SASU</option>
+          <option>EURL</option>
+          <option>SARL</option>
+          <option>SAS</option>
+        </select>
+        <select className="select" value={form.avancement} onChange={e=>set('avancement', e.target.value)}>
+          <option>À qualifier</option>
+          <option>Dossier en cours</option>
+          <option>À déposer</option>
+          <option>Immatriculé</option>
+          <option>Transformé en client</option>
+        </select>
+        <select className="select" value={form.inpi_status} onChange={e=>set('inpi_status', e.target.value)}>
+          <option>Non démarré</option>
+          <option>À préparer</option>
+          <option>En cours</option>
+          <option>Déposé</option>
+        </select>
+      </div>
+
+      <div className="row" style={{marginTop:12}}>
+        <label className="small"><input type="checkbox" checked={form.besoin_decennale} onChange={e=>set('besoin_decennale', e.target.checked)} /> Décennale</label>
+        <label className="small"><input type="checkbox" checked={form.besoin_rcpro} onChange={e=>set('besoin_rcpro', e.target.checked)} /> RC Pro</label>
+      </div>
+
+      <div style={{marginTop:12}}>
+        <textarea className="textarea" placeholder="Notes" value={form.notes} onChange={e=>set('notes', e.target.value)} />
+      </div>
+
+      <div className="row" style={{justifyContent:'flex-end', marginTop:16}}>
+        <button className="btn" onClick={onClose}>Annuler</button>
+        <button className="btn primary" onClick={()=>onSave(form)}>Enregistrer</button>
+      </div>
+    </Modal>
+  );
 }
 
 function Reports({ data }) {
   const totalPrime = data.contracts.filter(c=>c.statut==='Actif').reduce((s,c)=>s+Number(c.prime||0),0);
   const totalCommission = data.contracts.filter(c=>c.statut==='Actif').reduce((s,c)=>s+Number(c.commission||0),0);
+
   const topClients = data.clients.map(c => ({
     ...c,
     value: data.contracts.filter(k => k.client_id === c.id).reduce((s, k) => s + Number(k.prime || 0), 0),
   })).sort((a, b) => b.value - a.value).slice(0, 5);
-  return <div className="col">
-    <div className="grid3">
-      <div className="card"><div className="title" style={{fontSize:20, marginBottom:10}}>Clients</div><strong>{data.clients.length}</strong></div>
-      <div className="card"><div className="title" style={{fontSize:20, marginBottom:10}}>Primes actives</div><strong>{euro(totalPrime)}</strong></div>
-      <div className="card"><div className="title" style={{fontSize:20, marginBottom:10}}>Commissions</div><strong>{euro(totalCommission)}</strong></div>
+
+  return (
+    <div className="col">
+      <div className="grid3">
+        <div className="card"><div className="title" style={{fontSize:20, marginBottom:10}}>Clients</div><strong>{data.clients.length}</strong></div>
+        <div className="card"><div className="title" style={{fontSize:20, marginBottom:10}}>Primes actives</div><strong>{euro(totalPrime)}</strong></div>
+        <div className="card"><div className="title" style={{fontSize:20, marginBottom:10}}>Commissions</div><strong>{euro(totalCommission)}</strong></div>
+      </div>
+
+      <div className="grid2">
+        <div className="card">
+          <div className="title" style={{fontSize:20, marginBottom:10}}>Top clients</div>
+          {topClients.length === 0 ? <div className="small">Aucune donnée.</div> : topClients.map(c => <div key={c.id} className="metricline"><span>{clientName(c)}</span><strong>{euro(c.value)}</strong></div>)}
+        </div>
+
+        <div className="card">
+          <div className="title" style={{fontSize:20, marginBottom:10}}>Répartition activité</div>
+          <div className="metricline"><span>Opportunités gagnées</span><strong>{data.deals.filter(d=>d.stage === 'gagne').length}</strong></div>
+          <div className="metricline"><span>Sinistres ouverts</span><strong>{data.claims.filter(c=>c.statut !== 'Clos').length}</strong></div>
+          <div className="metricline"><span>Dossiers artisans</span><strong>{data.artisans.length}</strong></div>
+        </div>
+      </div>
     </div>
-    <div className="grid2">
-      <div className="card"><div className="title" style={{fontSize:20, marginBottom:10}}>Top clients</div>{topClients.length === 0 ? <div className="small">Aucune donnée.</div> : topClients.map(c => <div key={c.id} className="metricline"><span>{clientName(c)}</span><strong>{euro(c.value)}</strong></div>)}</div>
-      <div className="card"><div className="title" style={{fontSize:20, marginBottom:10}}>Répartition activité</div><div className="metricline"><span>Opportunités gagnées</span><strong>{data.deals.filter(d=>d.stage === 'gagne').length}</strong></div><div className="metricline"><span>Sinistres ouverts</span><strong>{data.claims.filter(c=>c.statut !== 'Clos').length}</strong></div><div className="metricline"><span>Dossiers artisans</span><strong>{data.artisans.length}</strong></div></div>
-    </div>
-  </div>;
+  );
 }
 
 function CRMApp({ onLogout, currentUser }) {
@@ -591,57 +1049,71 @@ function CRMApp({ onLogout, currentUser }) {
     };
   }, [data, q]);
 
-  return <>
-    <style>{CSS}</style>
-    <Toasts items={toasts} remove={removeToast} />
-    <div className="app">
-      <aside className="sidebar">
-        <div className="brand">
-          <div className="logo">AP</div>
-          <div><div style={{fontWeight:900}}>AssurPilot</div><div className="small">CRM intelligent pour courtiers</div></div>
-        </div>
-        <div className="nav">{MENU.map(([id, label]) => <button key={id} className={page===id?"active":""} onClick={()=>setPage(id)}>{label}</button>)}</div>
-        <div className="side-footer">
-          <div style={{fontWeight:900, marginBottom:6}}>Vue AssurPilot</div>
-          <div className="small">Connecté : {currentUser?.email || "—"}</div>
-          <div className="small">Clients : {data.clients.length}</div>
-          <div className="small">Contrats actifs : {data.contracts.filter(c=>c.statut === 'Actif').length}</div>
-          <div className="small">Pipeline : {euro(data.deals.reduce((s, d) => s + Number(d.montant || 0), 0))}</div>
-          {DEV_TOOLS ? <div className="row" style={{marginTop:10}}><button className="btn" onClick={actions.refresh}>Rafraîchir</button><button className="btn primary" onClick={actions.seedDemo}>Créer démo</button></div> : null}
-        </div>
-      </aside>
-      <main className="main">
-        <div className="topbar">
-          <div>
-            <div className="title">{MENU.find(m=>m[0]===page)?.[1]}</div>
-            <div className="subtitle">AssurPilot pilote votre cabinet, vos relances et votre activité artisan sans friction.</div>
+  return (
+    <>
+      <style>{CSS}</style>
+      <Toasts items={toasts} remove={removeToast} />
+      <div className="app">
+        <aside className="sidebar">
+          <div className="brand">
+            <div className="logo">AP</div>
+            <div>
+              <div style={{fontWeight:900}}>AssurPilot</div>
+              <div className="small">CRM intelligent pour courtiers</div>
+            </div>
           </div>
-          <div className="filterbar">
-            <input className="input searchbar" placeholder="Recherche globale client / artisan..." value={q} onChange={(e)=>setQ(e.target.value)} />
-            <button className="btn" onClick={()=>exportCSV("clients.csv", [["Prénom","Nom","Email","Téléphone","Ville","Statut"], ...data.clients.map(c=>[c.prenom,c.nom,c.email,c.tel,c.ville,c.statut])])}>Exporter clients</button>
-            <button className="btn light" onClick={onLogout}>Déconnexion</button>
+
+          <div className="nav">{MENU.map(([id, label]) => <button key={id} className={page===id?"active":""} onClick={()=>setPage(id)}>{label}</button>)}</div>
+
+          <div className="side-footer">
+            <div style={{fontWeight:900, marginBottom:6}}>Vue AssurPilot</div>
+            <div className="small">Connecté : {currentUser?.email || "—"}</div>
+            <div className="small">Clients : {data.clients.length}</div>
+            <div className="small">Contrats actifs : {data.contracts.filter(c=>c.statut === 'Actif').length}</div>
+            <div className="small">Pipeline : {euro(data.deals.reduce((s, d) => s + Number(d.montant || 0), 0))}</div>
+            {DEV_TOOLS ? (
+              <div className="row" style={{marginTop:10}}>
+                <button className="btn" onClick={actions.refresh}>Rafraîchir</button>
+                <button className="btn primary" onClick={actions.seedDemo}>Créer démo</button>
+              </div>
+            ) : null}
           </div>
-        </div>
+        </aside>
 
-        {error && <div className="notice">Erreur Supabase : {error}</div>}
-        {loading && <div className="notice">Chargement des données du cabinet...</div>}
-        {!loading && data.clients.length === 0 && data.contracts.length === 0 && data.tasks.length === 0 && data.deals.length === 0 && data.claims.length === 0 && data.artisans.length === 0 && <div className="notice">La base est vide. Commence par créer tes premiers clients, contrats ou dossiers artisans.</div>}
+        <main className="main">
+          <div className="topbar">
+            <div>
+              <div className="title">{MENU.find(m=>m[0]===page)?.[1]}</div>
+              <div className="subtitle">AssurPilot pilote votre cabinet, vos relances et votre activité artisan sans friction.</div>
+            </div>
+            <div className="filterbar">
+              <input className="input searchbar" placeholder="Recherche globale client / artisan..." value={q} onChange={(e)=>setQ(e.target.value)} />
+              <button className="btn" onClick={()=>exportCSV("clients.csv", [["Prénom","Nom","Email","Téléphone","Ville","Statut"], ...data.clients.map(c=>[c.prenom,c.nom,c.email,c.tel,c.ville,c.statut])])}>Exporter clients</button>
+              <button className="btn light" onClick={onLogout}>Déconnexion</button>
+            </div>
+          </div>
 
-        {page === "dashboard" && <Dashboard data={filteredData} />}
-        {page === "clients" && <Clients data={filteredData} actions={actions} />}
-        {page === "contracts" && <Contracts data={filteredData} actions={actions} />}
-        {page === "tasks" && <Tasks data={filteredData} actions={actions} />}
-        {page === "pipeline" && <Pipeline data={filteredData} actions={actions} />}
-        {page === "claims" && <Claims data={filteredData} actions={actions} />}
-        {page === "craft" && <CraftCreation data={filteredData} actions={actions} />}
-        {page === "reports" && <Reports data={filteredData} />}
-      </main>
-    </div>
-  </>;
+          {error && <div className="notice">Erreur Supabase : {error}</div>}
+          {loading && <div className="notice">Chargement des données du cabinet...</div>}
+          {!loading && data.clients.length === 0 && data.contracts.length === 0 && data.tasks.length === 0 && data.deals.length === 0 && data.claims.length === 0 && data.artisans.length === 0 && <div className="notice">La base est vide. Commence par créer tes premiers clients, contrats ou dossiers artisans.</div>}
+
+          {page === "dashboard" && <Dashboard data={filteredData} />}
+          {page === "clients" && <Clients data={filteredData} actions={actions} />}
+          {page === "contracts" && <Contracts data={filteredData} actions={actions} />}
+          {page === "tasks" && <Tasks data={filteredData} actions={actions} />}
+          {page === "pipeline" && <Pipeline data={filteredData} actions={actions} />}
+          {page === "claims" && <Claims data={filteredData} actions={actions} />}
+          {page === "craft" && <CraftCreation data={filteredData} actions={actions} />}
+          {page === "reports" && <Reports data={filteredData} />}
+        </main>
+      </div>
+    </>
+  );
 }
 
-
-function LoginScreen({ onLogin, loading, error }) {
+function AuthScreen({ mode, setMode, onLogin, onSignup, loading, error, info }) {
+  const [fullName, setFullName] = useState("");
+  const [orgName, setOrgName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -657,7 +1129,7 @@ function LoginScreen({ onLogin, loading, error }) {
 
   const card = {
     width: "100%",
-    maxWidth: "460px",
+    maxWidth: "520px",
     background: "rgba(15,23,42,0.88)",
     border: "1px solid rgba(255,255,255,0.10)",
     borderRadius: "28px",
@@ -686,6 +1158,11 @@ function LoginScreen({ onLogin, loading, error }) {
     cursor: "pointer",
   };
 
+  const submit = () => {
+    if (mode === "login") onLogin(email, password);
+    else onSignup({ fullName, orgName, email, password });
+  };
+
   return (
     <div style={shell}>
       <div style={card}>
@@ -697,37 +1174,34 @@ function LoginScreen({ onLogin, loading, error }) {
           </div>
         </div>
 
-        <div style={{fontSize:"34px", fontWeight:900, lineHeight:1.1, marginBottom:"10px"}}>Espace CRM privé</div>
+        <div style={{display:"flex", gap:"8px", marginBottom:"18px"}}>
+          <button type="button" style={{...button, background: mode === "login" ? "linear-gradient(135deg,#6366f1,#8b5cf6)" : "transparent", border: mode === "login" ? "none" : "1px solid rgba(255,255,255,0.12)"}} onClick={() => setMode("login")}>Connexion</button>
+          <button type="button" style={{...button, background: mode === "signup" ? "linear-gradient(135deg,#6366f1,#8b5cf6)" : "transparent", border: mode === "signup" ? "none" : "1px solid rgba(255,255,255,0.12)"}} onClick={() => setMode("signup")}>Créer un compte</button>
+        </div>
+
+        <div style={{fontSize:"34px", fontWeight:900, lineHeight:1.1, marginBottom:"10px"}}>{mode === "login" ? "Espace CRM privé" : "Créer votre établissement"}</div>
         <div style={{color:"#cbd5e1", lineHeight:1.7, marginBottom:"20px"}}>
-          Connecte-toi pour accéder à ton établissement, tes utilisateurs et tes données clients.
+          {mode === "login"
+            ? "Connecte-toi pour accéder à ton établissement, tes utilisateurs et tes données clients."
+            : "Crée ton compte, ton établissement sera généré automatiquement et tu deviendras administrateur de ton espace."}
         </div>
 
         <div style={{display:"grid", gap:"12px"}}>
-          <input
-            style={input}
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e)=>setEmail(e.target.value)}
-          />
-          <input
-            style={input}
-            type="password"
-            placeholder="Mot de passe"
-            value={password}
-            onChange={(e)=>setPassword(e.target.value)}
-            onKeyDown={(e)=>{ if (e.key === "Enter") onLogin(email, password); }}
-          />
+          {mode === "signup" ? (
+            <>
+              <input style={input} placeholder="Nom complet" value={fullName} onChange={(e)=>setFullName(e.target.value)} />
+              <input style={input} placeholder="Nom de l’établissement" value={orgName} onChange={(e)=>setOrgName(e.target.value)} />
+            </>
+          ) : null}
+
+          <input style={input} type="email" placeholder="Email" value={email} onChange={(e)=>setEmail(e.target.value)} />
+          <input style={input} type="password" placeholder="Mot de passe" value={password} onChange={(e)=>setPassword(e.target.value)} onKeyDown={(e)=>{ if (e.key === "Enter") submit(); }} />
+
           {error ? <div style={{padding:"12px 14px", borderRadius:"14px", background:"rgba(239,68,68,0.12)", border:"1px solid rgba(239,68,68,0.25)", color:"#fecaca"}}>{error}</div> : null}
-          <button style={button} onClick={()=>onLogin(email, password)} disabled={loading}>
-            {loading ? "Connexion..." : "Se connecter"}
-          </button>
-          <button
-            style={{...button, background:"transparent", border:"1px solid rgba(255,255,255,0.12)"}}
-            onClick={()=>window.location.href = "/"}
-          >
-            Retour au site
-          </button>
+          {!error && info ? <div style={{padding:"12px 14px", borderRadius:"14px", background:"rgba(59,130,246,0.12)", border:"1px solid rgba(59,130,246,0.25)", color:"#bfdbfe"}}>{info}</div> : null}
+
+          <button type="button" style={button} onClick={submit} disabled={loading}>{loading ? "Traitement..." : mode === "login" ? "Se connecter" : "Créer mon établissement"}</button>
+          <button type="button" style={{...button, background:"transparent", border:"1px solid rgba(255,255,255,0.12)"}} onClick={()=>window.location.href = "/"}>Retour au site</button>
         </div>
       </div>
     </div>
@@ -739,24 +1213,27 @@ function CRMProtected() {
   const [checking, setChecking] = useState(true);
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState("");
+  const [authInfo, setAuthInfo] = useState("");
+  const [mode, setMode] = useState("login");
 
   useEffect(() => {
-    let mounted = true;
+    let active = true;
 
     supabase.auth.getSession().then(({ data, error }) => {
-      if (!mounted) return;
+      if (!active) return;
       if (error) setAuthError(error.message || "Erreur de session");
       setSession(data.session || null);
       setChecking(false);
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      if (!active) return;
       setSession(newSession || null);
       setChecking(false);
     });
 
     return () => {
-      mounted = false;
+      active = false;
       listener?.subscription?.unsubscribe?.();
     };
   }, []);
@@ -764,8 +1241,60 @@ function CRMProtected() {
   const login = async (email, password) => {
     setAuthLoading(true);
     setAuthError("");
+    setAuthInfo("");
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) setAuthError(error.message || "Connexion impossible");
+    setAuthLoading(false);
+  };
+
+  const signup = async ({ fullName, orgName, email, password }) => {
+    setAuthLoading(true);
+    setAuthError("");
+    setAuthInfo("");
+
+    if (!fullName.trim()) {
+      setAuthError("Le nom complet est obligatoire.");
+      setAuthLoading(false);
+      return;
+    }
+
+    if (!orgName.trim()) {
+      setAuthError("Le nom de l’établissement est obligatoire.");
+      setAuthLoading(false);
+      return;
+    }
+
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: window.location.origin + "/crm",
+        data: { full_name: fullName, org_name: orgName },
+      },
+    });
+
+    if (error) {
+      setAuthError(error.message || "Inscription impossible");
+      setAuthLoading(false);
+      return;
+    }
+
+    if (data?.session && data?.user?.id) {
+      const { error: rpcError } = await supabase.rpc("create_organization_for_user", {
+        p_user_id: data.user.id,
+        p_org_name: orgName,
+        p_org_slug: null,
+      });
+
+      if (rpcError && !String(rpcError.message || "").toLowerCase().includes("déjà rattaché")) {
+        setAuthError(rpcError.message || "Compte créé, mais établissement non créé.");
+        setAuthLoading(false);
+        return;
+      }
+    }
+
+    setAuthInfo("Compte créé. Vérifie ton email si une confirmation est demandée, puis connecte-toi.");
+    setMode("login");
     setAuthLoading(false);
   };
 
@@ -775,17 +1304,11 @@ function CRMProtected() {
   };
 
   if (checking) {
-    return (
-      <div style={{minHeight:"100vh", display:"grid", placeItems:"center", background:"radial-gradient(circle at top left,#0b1838 0%,#08111f 34%,#050b15 100%)", color:"white", fontFamily:"Inter, Arial, sans-serif"}}>
-        <div style={{padding:"18px 22px", borderRadius:"18px", background:"rgba(15,23,42,0.82)", border:"1px solid rgba(255,255,255,0.08)"}}>
-          Vérification de l’accès sécurisé...
-        </div>
-      </div>
-    );
+    return <div style={{minHeight:"100vh", display:"grid", placeItems:"center", background:"radial-gradient(circle at top left,#0b1838 0%,#08111f 34%,#050b15 100%)", color:"white", fontFamily:"Inter, Arial, sans-serif"}}><div style={{padding:"18px 22px", borderRadius:"18px", background:"rgba(15,23,42,0.82)", border:"1px solid rgba(255,255,255,0.08)"}}>Vérification de l’accès sécurisé...</div></div>;
   }
 
   if (!session) {
-    return <LoginScreen onLogin={login} loading={authLoading} error={authError} />;
+    return <AuthScreen mode={mode} setMode={setMode} onLogin={login} onSignup={signup} loading={authLoading} error={authError} info={authInfo} />;
   }
 
   return <CRMApp onLogout={logout} currentUser={session.user} />;
@@ -796,4 +1319,3 @@ export default function App() {
   if (path === "/crm") return <CRMProtected />;
   return <Landing />;
 }
-
