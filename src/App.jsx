@@ -28,6 +28,7 @@ const MENU = [
   ["clients", "Clients"],
   ["contracts", "Contrats"],
   ["tasks", "Tâches"],
+  ["team", "Équipe"],
   ["pipeline", "Pipeline"],
   ["claims", "Sinistres"],
   ["craft", "Création artisan"],
@@ -389,6 +390,48 @@ function useCRMCloud(currentOrgId) {
 }
 
 
+
+function useTeamMembers(currentOrgId) {
+  const [members, setMembers] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadMembers = async () => {
+    if (!currentOrgId) {
+      setMembers([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("organization_users")
+      .select("id, user_id, role, created_at, profiles(email)")
+      .eq("organization_id", currentOrgId)
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      setMembers([]);
+      setLoading(false);
+      return;
+    }
+
+    setMembers((data || []).map((row) => ({
+      id: row.id,
+      user_id: row.user_id,
+      role: row.role,
+      email: row.profiles?.email || "—",
+      created_at: row.created_at,
+    })));
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    loadMembers();
+  }, [currentOrgId]);
+
+  return { members, loading, reload: loadMembers };
+}
+
 function KPI({ label, value, delta, icon }) {
   return <div className="card stat"><div className="row" style={{justifyContent:"space-between", alignItems:"center"}}><div className="label">{label}</div><div className="kpi-icon">{icon}</div></div><div className="value">{value}</div>{delta ? <div className="delta">{delta}</div> : null}</div>;
 }
@@ -528,25 +571,68 @@ function ContractForm({ clients, contract, onClose, onSave }) {
   </Modal>;
 }
 
-function Tasks({ data, actions }) {
+
+function Tasks({ data, actions, teamMembers, currentUser }) {
   const [open, setOpen] = useState(false);
   const [edit, setEdit] = useState(null);
   const [toDelete, setToDelete] = useState(null);
   const [status, setStatus] = useState("toutes");
-  const tasks = data.tasks.filter((t) => status === "toutes" ? true : status === "faites" ? t.done : !t.done);
+  const [scope, setScope] = useState("all");
+
+  const visibleTasks = data.tasks.filter((t) => {
+    const statusOk = status === "toutes" ? true : status === "faites" ? t.done : !t.done;
+    const scopeOk = scope === "all" ? true : t.assigned_to === currentUser?.id;
+    return statusOk && scopeOk;
+  });
+
+  const assignedLabel = (task) => {
+    const member = teamMembers.find((m) => m.user_id === task.assigned_to);
+    return member?.email || "Non assignée";
+  };
+
   return <>
     <div className="topbar">
-      <div><div className="title">Tâches</div><div className="subtitle">Organisation des relances et priorités du cabinet.</div></div>
-      <div className="filterbar"><select className="select" style={{width:180}} value={status} onChange={(e)=>setStatus(e.target.value)}><option value="toutes">Toutes</option><option value="ouvertes">Ouvertes</option><option value="faites">Faites</option></select><button className="btn primary" onClick={()=>{setEdit(null);setOpen(true);}}>+ Nouvelle tâche</button></div>
+      <div><div className="title">Tâches</div><div className="subtitle">Organisation des relances, assignation et suivi équipe.</div></div>
+      <div className="filterbar">
+        <select className="select" style={{width:180}} value={status} onChange={(e)=>setStatus(e.target.value)}>
+          <option value="toutes">Toutes</option>
+          <option value="ouvertes">Ouvertes</option>
+          <option value="faites">Faites</option>
+        </select>
+        <select className="select" style={{width:180}} value={scope} onChange={(e)=>setScope(e.target.value)}>
+          <option value="all">Toute l’équipe</option>
+          <option value="mine">Mes tâches</option>
+        </select>
+        <button className="btn primary" onClick={()=>{setEdit(null);setOpen(true);}}>+ Nouvelle tâche</button>
+      </div>
     </div>
-    <div className="col">{tasks.map(t=>{ const cl = data.clients.find(c=>c.id===t.client_id); return <div className="card" key={t.id} style={{opacity:t.done?.78:1}}><div className="row" style={{justifyContent:"space-between", alignItems:"center"}}><div><div style={{fontWeight:900, textDecoration:t.done?"line-through":"none"}}>{t.titre}</div><div className="small">{clientName(cl)} · échéance {fmtDate(t.echeance)}</div></div><div className="actions"><Badge>{t.priorite}</Badge><button className={`btn ${t.done ? "" : "good"}`} onClick={()=>actions.toggleTask(t)}>{t.done ? "Réouvrir" : "Terminer"}</button><button className="btn" onClick={()=>{setEdit(t);setOpen(true);}}>Modifier</button><button className="btn danger" onClick={()=>setToDelete(t)}>Supprimer</button></div></div></div>;})}</div>
-    {open && <TaskForm clients={data.clients} task={edit} onClose={()=>setOpen(false)} onSave={async (payload)=>{ edit ? await actions.updateTask(edit.id, payload) : await actions.addTask(payload); setOpen(false); }} />}
+    <div className="col">
+      {visibleTasks.map(t=> {
+        const cl = data.clients.find(c=>c.id===t.client_id);
+        return <div className="card" key={t.id} style={{opacity:t.done ? .78 : 1}}>
+          <div className="row" style={{justifyContent:"space-between", alignItems:"center"}}>
+            <div>
+              <div style={{fontWeight:900, textDecoration:t.done?"line-through":"none"}}>{t.titre}</div>
+              <div className="small">{clientName(cl)} · échéance {fmtDate(t.echeance)}</div>
+              <div className="small">Assignée à : {assignedLabel(t)}</div>
+            </div>
+            <div className="actions">
+              <Badge>{t.priorite}</Badge>
+              <button className={`btn ${t.done ? "" : "good"}`} onClick={()=>actions.toggleTask(t)}>{t.done ? "Réouvrir" : "Terminer"}</button>
+              <button className="btn" onClick={()=>{setEdit(t);setOpen(true);}}>Modifier</button>
+              <button className="btn danger" onClick={()=>setToDelete(t)}>Supprimer</button>
+            </div>
+          </div>
+        </div>;
+      })}
+    </div>
+    {open && <TaskForm clients={data.clients} teamMembers={teamMembers} currentUser={currentUser} task={edit} onClose={()=>setOpen(false)} onSave={async (payload)=>{ edit ? await actions.updateTask(edit.id, payload) : await actions.addTask(payload); setOpen(false); }} />}
     {toDelete && <ConfirmDialog title="Supprimer la tâche" message={`Supprimer la tâche “${toDelete.titre}” ?`} onClose={()=>setToDelete(null)} onConfirm={async ()=>{ await actions.deleteTask(toDelete.id); setToDelete(null); }} />}
   </>;
 }
 
-function TaskForm({ clients, task, onClose, onSave }) {
-  const [form, setForm] = useState(task || { client_id: clients[0]?.id || "", titre:"", echeance:today(), priorite:"Normale", done:false });
+function TaskForm({ clients, teamMembers, currentUser, task, onClose, onSave }) {
+  const [form, setForm] = useState(task || { client_id: clients[0]?.id || "", titre:"", echeance:today(), priorite:"Normale", done:false, assigned_to: currentUser?.id || "" });
   const set = (k,v)=>setForm(s=>({...s,[k]:v}));
   return <Modal title={task ? "Modifier la tâche" : "Nouvelle tâche"} onClose={onClose}>
     <div className="formgrid">
@@ -554,9 +640,60 @@ function TaskForm({ clients, task, onClose, onSave }) {
       <input className="input" placeholder="Titre" value={form.titre} onChange={e=>set("titre",e.target.value)} />
       <input className="input" type="date" value={form.echeance} onChange={e=>set("echeance",e.target.value)} />
       <select className="select" value={form.priorite} onChange={e=>set("priorite",e.target.value)}><option>Basse</option><option>Normale</option><option>Haute</option><option>Urgente</option></select>
+      <select className="select" value={form.assigned_to || ""} onChange={e=>set("assigned_to", e.target.value || null)}>
+        <option value="">Non assignée</option>
+        {teamMembers.map(m => <option key={m.user_id} value={m.user_id}>{m.email} · {m.role}</option>)}
+      </select>
     </div>
     <div className="row" style={{justifyContent:"flex-end", marginTop:16}}><button className="btn" onClick={onClose}>Annuler</button><button className="btn primary" onClick={()=>onSave(form)}>Enregistrer</button></div>
   </Modal>;
+}
+
+function Team({ teamMembers, loading, currentOrg, currentUser }) {
+  return <>
+    <div className="topbar">
+      <div><div className="title">Équipe</div><div className="subtitle">Membres de l’établissement, rôles et base de la gestion des accès.</div></div>
+    </div>
+
+    <div className="grid2">
+      <div className="card">
+        <div className="title" style={{fontSize:20, marginBottom:10}}>Établissement actif</div>
+        <div className="metricline"><span>Nom</span><strong>{currentOrg?.organization_name || "—"}</strong></div>
+        <div className="metricline"><span>Slug</span><strong>{currentOrg?.organization_slug || "—"}</strong></div>
+        <div className="metricline"><span>Ton rôle</span><strong>{currentOrg?.role || "—"}</strong></div>
+        <div className="small" style={{marginTop:10}}>Version actuelle : lecture des membres + assignation des tâches. L’invitation automatique sera l’étape suivante.</div>
+      </div>
+
+      <div className="card">
+        <div className="title" style={{fontSize:20, marginBottom:10}}>Résumé équipe</div>
+        <div className="metricline"><span>Membres</span><strong>{teamMembers.length}</strong></div>
+        <div className="metricline"><span>Admins</span><strong>{teamMembers.filter(m => m.role === "admin" || m.role === "super_admin").length}</strong></div>
+        <div className="metricline"><span>Utilisateurs</span><strong>{teamMembers.filter(m => m.role === "user").length}</strong></div>
+        <div className="metricline"><span>Compte connecté</span><strong>{currentUser?.email || "—"}</strong></div>
+      </div>
+    </div>
+
+    <div className="card" style={{marginTop:14}}>
+      <div className="title" style={{fontSize:20, marginBottom:10}}>Membres de l’équipe</div>
+      {loading ? <div className="small">Chargement des membres…</div> : (
+        <div className="tablewrap">
+          <table className="table">
+            <thead><tr><th>Email</th><th>Rôle</th><th>Ajouté le</th><th>État</th></tr></thead>
+            <tbody>
+              {teamMembers.map((m) => (
+                <tr key={m.id}>
+                  <td className="name">{m.email}</td>
+                  <td><Badge>{m.role}</Badge></td>
+                  <td>{fmtDate(m.created_at)}</td>
+                  <td>{m.user_id === currentUser?.id ? <span className="badge" style={{background:"#10203b", color:"#bfdbfe"}}>Toi</span> : <span className="small">Membre</span>}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  </>;
 }
 
 function Pipeline({ data, actions }) {
@@ -690,6 +827,7 @@ function Reports({ data }) {
 
 function CRMApp({ onLogout, currentUser, currentOrg }) {
   const { data, actions, loading, error, toasts, removeToast } = useCRMCloud(currentOrg?.organization_id);
+  const { members: teamMembers, loading: teamLoading } = useTeamMembers(currentOrg?.organization_id);
   const [page, setPage] = useState("dashboard");
   const [q, setQ] = useState("");
 
@@ -748,7 +886,8 @@ function CRMApp({ onLogout, currentUser, currentOrg }) {
         {page === "dashboard" && <Dashboard data={filteredData} />}
         {page === "clients" && <Clients data={filteredData} actions={actions} />}
         {page === "contracts" && <Contracts data={filteredData} actions={actions} />}
-        {page === "tasks" && <Tasks data={filteredData} actions={actions} />}
+        {page === "tasks" && <Tasks data={filteredData} actions={actions} teamMembers={teamMembers} currentUser={currentUser} />}
+        {page === "team" && <Team teamMembers={teamMembers} loading={teamLoading} currentOrg={currentOrg} currentUser={currentUser} />}
         {page === "pipeline" && <Pipeline data={filteredData} actions={actions} />}
         {page === "claims" && <Claims data={filteredData} actions={actions} />}
         {page === "craft" && <CraftCreation data={filteredData} actions={actions} />}
@@ -759,7 +898,10 @@ function CRMApp({ onLogout, currentUser, currentOrg }) {
 }
 
 
-function LoginScreen({ onLogin, loading, error }) {
+
+function AuthScreen({ mode, setMode, onLogin, onSignup, loading, error, info }) {
+  const [fullName, setFullName] = useState("");
+  const [orgName, setOrgName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -775,7 +917,7 @@ function LoginScreen({ onLogin, loading, error }) {
 
   const card = {
     width: "100%",
-    maxWidth: "460px",
+    maxWidth: "520px",
     background: "rgba(15,23,42,0.88)",
     border: "1px solid rgba(255,255,255,0.10)",
     borderRadius: "28px",
@@ -804,6 +946,11 @@ function LoginScreen({ onLogin, loading, error }) {
     cursor: "pointer",
   };
 
+  const submit = () => {
+    if (mode === "login") onLogin(email, password);
+    else onSignup({ fullName, orgName, email, password });
+  };
+
   return (
     <div style={shell}>
       <div style={card}>
@@ -815,41 +962,48 @@ function LoginScreen({ onLogin, loading, error }) {
           </div>
         </div>
 
-        <div style={{fontSize:"34px", fontWeight:900, lineHeight:1.1, marginBottom:"10px"}}>Espace CRM privé</div>
+        <div style={{display:"flex", gap:"8px", marginBottom:"18px"}}>
+          <button type="button" style={{...button, background: mode === "login" ? "linear-gradient(135deg,#6366f1,#8b5cf6)" : "transparent", border: mode === "login" ? "none" : "1px solid rgba(255,255,255,0.12)"}} onClick={() => setMode("login")}>Connexion</button>
+          <button type="button" style={{...button, background: mode === "signup" ? "linear-gradient(135deg,#6366f1,#8b5cf6)" : "transparent", border: mode === "signup" ? "none" : "1px solid rgba(255,255,255,0.12)"}} onClick={() => setMode("signup")}>Créer un compte</button>
+        </div>
+
+        <div style={{fontSize:"34px", fontWeight:900, lineHeight:1.1, marginBottom:"10px"}}>
+          {mode === "login" ? "Espace CRM privé" : "Créer votre établissement"}
+        </div>
         <div style={{color:"#cbd5e1", lineHeight:1.7, marginBottom:"20px"}}>
-          Connecte-toi pour accéder à ton établissement, tes utilisateurs et tes données clients.
+          {mode === "login"
+            ? "Connecte-toi pour accéder à ton établissement, tes utilisateurs et tes données clients."
+            : "Crée ton compte, ton établissement sera généré automatiquement et tu deviendras administrateur de ton espace."}
         </div>
 
         <div style={{display:"grid", gap:"12px"}}>
-          <input
-            style={input}
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e)=>setEmail(e.target.value)}
-          />
-          <input
-            style={input}
-            type="password"
-            placeholder="Mot de passe"
-            value={password}
-            onChange={(e)=>setPassword(e.target.value)}
-            onKeyDown={(e)=>{ if (e.key === "Enter") onLogin(email, password); }}
-          />
+          {mode === "signup" ? (
+            <>
+              <input style={input} placeholder="Nom complet" value={fullName} onChange={(e)=>setFullName(e.target.value)} />
+              <input style={input} placeholder="Nom de l’établissement" value={orgName} onChange={(e)=>setOrgName(e.target.value)} />
+            </>
+          ) : null}
+
+          <input style={input} type="email" placeholder="Email" value={email} onChange={(e)=>setEmail(e.target.value)} />
+          <input style={input} type="password" placeholder="Mot de passe" value={password} onChange={(e)=>setPassword(e.target.value)} onKeyDown={(e)=>{ if (e.key === "Enter") submit(); }} />
+
           {error ? <div style={{padding:"12px 14px", borderRadius:"14px", background:"rgba(239,68,68,0.12)", border:"1px solid rgba(239,68,68,0.25)", color:"#fecaca"}}>{error}</div> : null}
-          <button style={button} onClick={()=>onLogin(email, password)} disabled={loading}>
-            {loading ? "Connexion..." : "Se connecter"}
+          {!error && info ? <div style={{padding:"12px 14px", borderRadius:"14px", background:"rgba(59,130,246,0.12)", border:"1px solid rgba(59,130,246,0.25)", color:"#bfdbfe"}}>{info}</div> : null}
+
+          <button type="button" style={button} onClick={submit} disabled={loading}>
+            {loading ? "Traitement..." : mode === "login" ? "Se connecter" : "Créer mon établissement"}
           </button>
-          <button
-            style={{...button, background:"transparent", border:"1px solid rgba(255,255,255,0.12)"}}
-            onClick={()=>window.location.href = "/"}
-          >
+          <button type="button" style={{...button, background:"transparent", border:"1px solid rgba(255,255,255,0.12)"}} onClick={()=>window.location.href = "/"}>
             Retour au site
           </button>
         </div>
       </div>
     </div>
   );
+}
+
+function LoginScreen(props) {
+  return <AuthScreen mode="login" setMode={() => {}} onSignup={() => {}} info="" {...props} />;
 }
 
 
@@ -990,7 +1144,7 @@ function CRMProtected() {
   }
 
   if (!session) {
-    return <LoginScreen onLogin={login} loading={authLoading} error={authError} />;
+    return <AuthScreen mode={mode} setMode={setMode} onLogin={login} onSignup={signup} loading={authLoading} error={authError} info={authInfo} />;
   }
 
   return <CRMApp onLogout={logout} currentUser={session.user} currentOrg={currentOrg} />;
